@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community Risk Register - Single Page Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 9999px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 9999px; }
+    .switch input:checked + .slider { background-color: #16a34a; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold">Community Risk Register - Demo</h1>
+      <p class="text-slate-600 mb-3">Enter scores (1-5) across the seven NFCC-aligned dimensions. We'll roll them up and auto-generate a narrative.</p>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2 bg-white border rounded-xl px-3 py-2">
+          <label for="storageSel" class="text-sm text-slate-600">Storage</label>
+          <select id="storageSel" class="text-sm border rounded-lg px-2 py-1">
+            <option value="idb" selected>IndexedDB (local)</option>
+            <option value="ls">LocalStorage (fallback)</option>
+          </select>
+        </div>
+        <button id="addNewBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add New Hazard</button>
+        <button id="exportBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Export JSON</button>
+        <label class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-medium cursor-pointer">
+          Import JSON
+          <input id="importInput" type="file" accept="application/json" class="hidden" />
+        </label>
+        <button id="copyLinkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-medium">Copy Import Link</button>
+        <button id="downloadLinkBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium">Download Launcher</button>
+      </div>
+    </header>
+
+    <section id="listView" class="mb-6">
+      <div class="bg-white rounded-2xl shadow p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xl font-semibold">Hazardous Events</h2>
+          <div class="text-sm text-slate-500">Click a row to edit</div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table min-w-full text-sm" id="hazardsTable">
+            <thead>
+              <tr class="text-left">
+                <th class="py-2 pr-4">Title</th>
+                <th class="py-2 pr-4">People</th>
+                <th class="py-2 pr-4">Buildings/Infra</th>
+                <th class="py-2 pr-4">Environment</th>
+                <th class="py-2 pr-4">FF Safety</th>
+                <th class="py-2 pr-4">Community/Society</th>
+                <th class="py-2 pr-4">Economy</th>
+                <th class="py-2 pr-4">Reputation</th>
+                <th class="py-2 pr-4">Overall</th>
+                <th class="py-2 pr-4">Saved</th>
+                <th class="py-2 pr-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="hazardsTbody">
+              <tr><td colspan="11" class="py-3 text-slate-500">No records yet. Click <strong>Add New Hazard</strong> to create one.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Editor view with 7 categories -->
+    <div id="editorView" class="grid lg:grid-cols-3 gap-6 hidden">
+      <section class="lg:col-span-2">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-6">
+          <div class="flex items-center gap-3">
+            <label for="riskTitle" class="font-semibold">Risk Title</label>
+            <input id="riskTitle" type="text" placeholder="e.g., Dwelling Fire, RTC, Flooding" class="flex-1 px-3 py-2 rounded-xl border" />
+            <button id="cancelBtn" class="px-3 py-2 rounded-xl border">Cancel</button>
+            <button id="backToListBtn" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Back to List</button>
+            <button id="resetBtn" class="px-3 py-2 rounded-xl border">Reset</button>
+          </div>
+
+          <!-- categories: one per row -->
+          <div id="categories" class="flex flex-col gap-5"></div>
+
+          <div class="flex items-center gap-3">
+            <button id="generateBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Generate Narrative</button>
+            <button id="saveBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Save Risk</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="space-y-6">
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-2">Summary</h3>
+          <div class="grid grid-cols-2 gap-3 text-sm" id="summaryPills"></div>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-3">Risk Profile</h3>
+          <canvas id="radarChart" height="300"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-2">Auto-Narrative</h3>
+          <p id="narrative" class="text-slate-700 leading-relaxed">Press <em>Generate Narrative</em> to produce a tailored summary.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Leave confirmation modal -->
+  <div id="leaveModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+      <h4 class="text-lg font-semibold mb-2">Discard unsaved changes?</h4>
+      <p class="text-slate-600 mb-4">You have unsaved changes. If you continue, your edits will be lost.</p>
+      <div class="flex justify-end gap-2">
+        <button id="keepEditingBtn" class="px-4 py-2 rounded-xl border">Continue editing</button>
+        <button id="discardChangesBtn" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white">Discard changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // ===== Config: 7-category framework (Option A) + mitigations + effectiveness + gaps + enable toggles =====
+    const CFG = {
+      categories: [
+        { key:'people', title:'People', enabled:false, sub:[
+          {id:'p_life', label:'Life safety (injury, fatality)'},
+          {id:'p_health', label:'Health & wellbeing (physical, psychological)'},
+          {id:'p_vuln', label:'Socio-economic vulnerabilities'}
+        ]},
+        { key:'buildings', title:'Buildings & Infrastructure', enabled:false, sub:[
+          {id:'b_stock', label:'Premises (domestic, commercial, industrial, heritage, high-risk)'},
+          {id:'b_cni', label:'Critical national infrastructure (energy, water, transport, comms)'},
+          {id:'b_transport', label:'Roads / rail / bridges / tunnels impacts'}
+        ]},
+        { key:'environment', title:'Environment', enabled:false, sub:[
+          {id:'e_nat', label:'Natural environment (wildfire, flood, storms, climate)'},
+          {id:'e_poll', label:'Pollution (chemical, smoke, water contamination)'},
+          {id:'e_biodiv', label:'Biodiversity & heritage landscapes'}
+        ]},
+        { key:'ff', title:'Firefighter & Responder Safety', enabled:false, sub:[
+          {id:'f_haz', label:'Exposure to hazardous materials'},
+          {id:'f_struct', label:'Structural collapse / entrapment / fatigue'},
+          {id:'f_psych', label:'Psychological harm and wellbeing'}
+        ]},
+        { key:'community', title:'Community & Society', enabled:false, sub:[
+          {id:'c_trust', label:'Public expectations and trust in FRS'},
+          {id:'c_cohesion', label:'Social cohesion / impacts on vulnerable communities'},
+          {id:'c_disrupt', label:'Wider community impact of disruption / failure to respond'}
+        ]},
+        { key:'economy', title:'Economy / Business Continuity', enabled:false, sub:[
+          {id:'ec_local', label:'Local economy (businesses, jobs, tourism)'},
+          {id:'ec_supply', label:'Supply chains / critical services disruption'},
+          {id:'ec_fin', label:'Financial harm to individuals / communities'}
+        ]},
+        { key:'reputation', title:'Reputation / Organisational Impact', enabled:false, sub:[
+          {id:'r_conf', label:'Confidence in the service'},
+          {id:'r_legal', label:'Legal / statutory compliance'},
+          {id:'r_multi', label:'Impact on partner agencies / multi-agency reputation'}
+        ]}
+      ],
+      likelihoodId:'o_likelihood',
+      radarMax: 6,
+      mitigationSteps: { 1:0.00, 2:0.10, 3:0.25, 4:0.40, 5:0.60 }
+    };
+
+    // ===== Helpers =====
+    const el = (id)=> document.getElementById(id);
+    const clamp15 = (n)=> Math.max(1, Math.min(5, Number(n||0)));
+    const round1 = (x)=> Math.round(x*10)/10;
+    const enabledOf = (key)=> (el('en_'+key)?.checked ?? false);
+    function mitigationReduction(eff){
+      const e = clamp15(eff);
+      if (CFG.mitigationSteps) { const v = CFG.mitigationSteps[e]; return typeof v === 'number' ? v : 0; }
+      return ((e-1)/4) * 0.4;
+    }
+
+    // ===== Build UI blocks =====
+    const catRoot = el('categories');
+    function buildCategoryBlocks(){
+      const frag = document.createDocumentFragment();
+      CFG.categories.forEach(cat=>{
+        const box = document.createElement('div');
+        box.className = 'border rounded-2xl p-4';
+        box.innerHTML = `
+          <div class=\"flex items-center justify-between mb-2\">
+            <h2 class=\"text-xl font-semibold\">${cat.title}</h2>
+            <div class=\"flex items-center gap-2\">
+              <span class=\"text-sm text-slate-600\">Include</span>
+              <label class=\"switch\">
+                <input id=\"en_${cat.key}\" type=\"checkbox\" ${cat.enabled?'checked':''}>
+                <span class=\"slider\"></span>
+              </label>
+            </div>
+          </div>
+          <div id=\"sec_${cat.key}_body\" class=\"space-y-3\">
+            ${cat.sub.map(sf=>`
+              <div class=\"flex items-center justify-between gap-3\">
+                <label class=\"w-56\">${sf.label}</label>
+                <input id=\"${sf.id}\" type=\"number\" min=\"1\" max=\"5\" value=\"3\" class=\"w-20 text-center border rounded-lg py-1\" />
+              </div>
+            `).join('')}
+            <div class=\"flex items-center justify-between gap-3 pt-2 border-t\">
+              <span class=\"w-56 font-medium\">Inherent ${cat.title} Score</span>
+              <output id=\"roll_${cat.key}\" class=\"w-24 text-center font-semibold\">3.0</output>
+            </div>
+
+            <!-- Existing Mitigations UI -->
+            <div class=\"mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200\">
+              <div class=\"flex items-center justify-between mb-2\">
+                <span class=\"font-medium text-emerald-900\">Existing mitigations</span>
+                <div class=\"flex items-center gap-2\">
+                  <input id=\"mit_${cat.key}_input\" type=\"text\" placeholder=\"Add a mitigation...\" class=\"px-2 py-1 text-sm border rounded-lg w-56\" />
+                  <button id=\"mit_${cat.key}_add\" class=\"px-2 py-1 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white\" title=\"Add mitigation\">+ Add</button>
+                </div>
+              </div>
+              <div id=\"mit_${cat.key}_list\" class=\"flex flex-wrap gap-2\"></div>
+            </div>
+
+            <!-- Gaps UI -->
+            <div class=\"mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200\">
+              <div class=\"flex items-center justify-between mb-2\">
+                <span class=\"font-medium text-rose-900\">Identified gaps</span>
+                <div class=\"flex items-center gap-2\">
+                  <input id=\"gap_${cat.key}_input\" type=\"text\" placeholder=\"Add a gap...\" class=\"px-2 py-1 text-sm border rounded-lg w-56\" />
+                  <button id=\"gap_${cat.key}_add\" class=\"px-2 py-1 text-sm rounded-lg bg-rose-600 hover:bg-rose-700 text-white\">+ Add</button>
+                </div>
+              </div>
+              <div id=\"gap_${cat.key}_list\" class=\"flex flex-wrap gap-2\"></div>
+            </div>
+
+            <!-- Effectiveness control AFTER mitigations/gaps -->
+            <div class=\"flex items-center justify-between gap-3 mt-2\">
+              <label class=\"w-56\">Mitigation effectiveness (1-5)</label>
+              <input id=\"eff_${cat.key}\" type=\"number\" min=\"1\" max=\"5\" value=\"1\" class=\"w-20 text-center border rounded-lg py-1\" />
+            </div>
+
+            <!-- Current Score AFTER mitigations -->
+            <div class=\"flex items-center justify-between gap-3 pt-2 border-t\">
+              <span class=\"w-56 font-medium\">Current ${cat.title} Score</span>
+              <output id=\"roll_adj_${cat.key}\" class=\"w-24 text-center font-semibold\">3.0</output>
+            </div>
+          </div>`;
+        frag.appendChild(box);
+      });
+
+      // Likelihood block
+      const like = document.createElement('div');
+      like.className = 'border rounded-2xl p-4';
+      like.innerHTML = `
+        <h2 class=\"text-xl font-semibold mb-2\">Likelihood</h2>
+        <div class=\"flex items-center justify-between gap-3\">
+          <label class=\"w-56\">Likelihood of occurrence</label>
+          <input id=\"${CFG.likelihoodId}\" type=\"number\" min=\"1\" max=\"5\" value=\"3\" class=\"w-20 text-center border rounded-lg py-1\" />
+        </div>
+        <div class=\"flex items-center justify-between gap-3 pt-2 border-t\">
+          <span class=\"w-56 font-medium\">Overall (L × Max current)</span>
+          <output id=\"overall_out\" class=\"w-24 text-center font-semibold\">0.0</output>
+        </div>`;
+      frag.appendChild(like);
+
+      catRoot.appendChild(frag);
+
+      // Apply initial visibility according to default enabled flags (all off by default)
+      CFG.categories.forEach(c=> toggleSectionBody(c.key, enabledOf(c.key)) );
+    }
+
+    // Summary pills (rebuilt on each recalc to obey enabled state)
+    const pillsRoot = el('summaryPills');
+    function buildPillsDynamic(rollsAdj, perCatRisk, overall){
+      const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
+      let html = enabledCats.map(cat=>{
+        const val = Number.isFinite(perCatRisk?.[cat.key]) ? Number(perCatRisk[cat.key]) : 0;
+        return `
+        <div class=\"p-3 rounded-xl bg-slate-50\">
+          <div class=\"text-slate-500\">${cat.title}</div>
+          <div id=\"pill_${cat.key}\" class=\"text-2xl font-bold\">${val.toFixed(1)}</div>
+          <div class=\"text-xs text-slate-500\">impact × likelihood</div>
+        </div>`;
+      }).join('');
+      const ov = Number.isFinite(overall) ? overall : 0;
+      html += `
+        <div class=\"p-3 rounded-xl bg-slate-50 col-span-2\">
+          <div class=\"text-slate-500\">Overall (Max impact × L)</div>
+          <div id=\"pill_overall\" class=\"text-2xl font-bold\">${ov.toFixed(1)}</div>
+        </div>`;
+      pillsRoot.innerHTML = html;
+    }
+
+    // ===== Calculations =====
+    function calcRoll(cat){
+      const vals = cat.sub.map(sf=> clamp15(el(sf.id).value));
+      if(!vals.length) return 0;
+      const sorted = vals.slice().sort((a,b)=> b-a);
+      const top = sorted[0];
+      const others = sorted.slice(1);
+      const sumOthersTenths = others.reduce((a,b)=> a + (b/10), 0);
+      return round1(top + sumOthersTenths);
+    }
+
+    function calcAdjusted(cat){
+      const base = calcRoll(cat);
+      const eff = clamp15(el('eff_'+cat.key).value);
+      const reduction = mitigationReduction(eff);
+      const adj = Math.max(0, base * (1 - reduction));
+      return { base, eff, adj: round1(adj) };
+    }
+
+    function recalc(){
+      const rollsAdj = {}; // adjusted impact (after mitigation)
+      CFG.categories.forEach(cat=>{
+        const { base, adj } = calcAdjusted(cat);
+        el('roll_'+cat.key).textContent = base.toFixed(1);
+        el('roll_adj_'+cat.key).textContent = adj.toFixed(1);
+        if(enabledOf(cat.key)) rollsAdj[cat.key] = adj;
+      });
+      const like = clamp15(el(CFG.likelihoodId).value);
+      // Per-section risk = impact (current adj) × likelihood
+      const perCatRisk = {};
+      Object.keys(rollsAdj).forEach(k=>{ perCatRisk[k] = round1(rollsAdj[k] * like); });
+      const vals = Object.values(rollsAdj);
+      const maxAdj = vals.length ? Math.max(...vals) : 0;
+      const overall = round1(maxAdj * like);
+      el('overall_out').textContent = overall.toFixed(1);
+      buildPillsDynamic(rollsAdj, perCatRisk, overall);
+      drawRadar(rollsAdj); // radar shows impacts (not multiplied) so scale remains 0-6
+    }
+
+    // ===== Mitigations helpers =====
+    function mitListEl(key){ return el(`mit_${key}_list`); }
+    function mitInputEl(key){ return el(`mit_${key}_input`); }
+    function getMitigations(key){
+      const list = mitListEl(key); if(!list) return [];
+      return Array.from(list.querySelectorAll('span[data-text]')).map(s=> s.getAttribute('data-text'));
+    }
+    function renderMitigationChip(key, text){
+      const span = document.createElement('span');
+      span.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs';
+      span.setAttribute('data-text', text);
+      span.innerHTML = `<span class=\"truncate max-w-[14rem]\" title=\"${text}\">${text}</span>
+        <button type=\"button\" class=\"ml-1 rounded-full px-1 text-emerald-900 hover:bg-emerald-200\" aria-label=\"Remove\" data-role=\"remove\">×</button>`;
+      span.querySelector('[data-role="remove"]').addEventListener('click', ()=>{ span.remove(); recalc(); });
+      mitListEl(key).appendChild(span);
+    }
+    function setMitigations(key, arr){
+      const list = mitListEl(key); if(!list) return;
+      list.innerHTML = '';
+      (arr||[]).forEach(t=>{ if(t && String(t).trim()) renderMitigationChip(key, String(t).trim()); });
+    }
+    function addMitigation(key, text){
+      const t = (text ?? mitInputEl(key)?.value ?? '').trim();
+      if(!t) return;
+      renderMitigationChip(key, t);
+      if(mitInputEl(key)) mitInputEl(key).value = '';
+      recalc();
+    }
+
+    // ===== Gaps helpers =====
+    function gapListEl(key){ return el(`gap_${key}_list`); }
+    function gapInputEl(key){ return el(`gap_${key}_input`); }
+    function getGaps(key){
+      const list = gapListEl(key); if(!list) return [];
+      return Array.from(list.querySelectorAll('span[data-text]')).map(s=> s.getAttribute('data-text'));
+    }
+    function renderGapChip(key, text){
+      const span = document.createElement('span');
+      span.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-100 text-rose-800 text-xs';
+      span.setAttribute('data-text', text);
+      span.innerHTML = `<span class=\"truncate max-w-[14rem]\" title=\"${text}\">${text}</span>
+        <button type=\"button\" class=\"ml-1 rounded-full px-1 text-rose-900 hover:bg-rose-200\" aria-label=\"Remove\" data-role=\"remove\">×</button>`;
+      span.querySelector('[data-role="remove"]').addEventListener('click', ()=>{ span.remove(); recalc(); });
+      gapListEl(key).appendChild(span);
+    }
+    function setGaps(key, arr){
+      const list = gapListEl(key); if(!list) return;
+      list.innerHTML = '';
+      (arr||[]).forEach(t=>{ if(t && String(t).trim()) renderGapChip(key, String(t).trim()); });
+    }
+    function addGap(key, text){
+      const t = (text ?? gapInputEl(key)?.value ?? '').trim();
+      if(!t) return;
+      renderGapChip(key, t);
+      if(gapInputEl(key)) gapInputEl(key).value = '';
+      recalc();
+    }
+
+    // ===== Lightweight radar (no external libs) =====
+    function drawRadar(rolls){
+      const canvas = document.getElementById('radarChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.clientWidth || 300; const cssH = canvas.clientHeight || 300;
+      canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.clearRect(0,0,cssW,cssH);
+
+      const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
+      const labels = enabledCats.map(c=>c.title);
+      const values = enabledCats.map(c=> rolls[c.key] ?? 0);
+      const max = 6;
+
+      const pad = 24; const cx = cssW/2; const cy = cssH/2; const radius = Math.min(cssW, cssH)/2 - pad - 10;
+      const steps = max;
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#cbd5e1'; // slate-300
+
+      // grid rings
+      for(let s=1; s<=steps; s++){
+        const r = radius * (s/max);
+        ctx.beginPath();
+        for(let i=0;i<labels.length;i++){
+          const ang = (Math.PI*2 * i/labels.length) - Math.PI/2;
+          const x = cx + r * Math.cos(ang);
+          const y = cy + r * Math.sin(ang);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      // axes
+      ctx.strokeStyle = '#e2e8f0'; // slate-200
+      for(let i=0;i<labels.length;i++){
+        const ang = (Math.PI*2 * i/labels.length) - Math.PI/2;
+        const x = cx + radius * Math.cos(ang);
+        const y = cy + radius * Math.sin(ang);
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x,y); ctx.stroke();
+      }
+
+      // labels
+      ctx.fillStyle = '#475569';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for(let i=0;i<labels.length;i++){
+        const ang = (Math.PI*2 * i/labels.length) - Math.PI/2;
+        const lx = cx + (radius + 12) * Math.cos(ang);
+        const ly = cy + (radius + 12) * Math.sin(ang);
+        ctx.fillText(labels[i], lx, ly);
+      }
+
+      // data polygon
+      if(labels.length){
+        const points = values.map((v,i)=>{
+          const ang = (Math.PI*2 * i/labels.length) - Math.PI/2;
+          const r = radius * (v/max);
+          return [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
+        });
+        ctx.beginPath();
+        points.forEach(([x,y],i)=>{ if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(99,102,241,0.15)'; // indigo-500 alpha
+        ctx.strokeStyle = 'rgba(99,102,241,0.9)';
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+
+        // data points
+        ctx.fillStyle = 'rgba(99,102,241,0.9)';
+        points.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill(); });
+      }
+    }
+
+    // ===== Narrative =====
+    function genNarrative(){
+      const title = (el('riskTitle').value||'This risk').trim();
+      const like = clamp15(el(CFG.likelihoodId).value);
+      const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
+      const adjs = {}; enabledCats.forEach(cat=>{ adjs[cat.key]=calcAdjusted(cat).adj; });
+      const maxCat = enabledCats.length ? enabledCats.reduce((best,cur)=> (adjs[cur.key] > adjs[best.key] ? cur : best), enabledCats[0]) : null;
+      const strong = enabledCats.filter(c=> adjs[c.key] >= 4.8).map(c=>c.title);
+
+      const parts = [];
+      parts.push(`${title} has a likelihood of ${like}/5${maxCat?` with strongest current impacts in ${maxCat.title}.`:'.'}`);
+      if(strong.length) parts.push('High-impact categories (after mitigation) include: ' + strong.join(', ') + '.');
+      if(maxCat){
+        const topMits = getMitigations(maxCat.key);
+        if(topMits.length){ parts.push(`Existing mitigations for ${maxCat.title}: ${topMits.slice(0,3).join('; ')}${topMits.length>3?' ...':''}.`); }
+        const topGaps = getGaps(maxCat.key);
+        if(topGaps.length){ parts.push(`Key gaps for ${maxCat.title}: ${topGaps.slice(0,3).join('; ')}${topGaps.length>3?' ...':''}.`); }
+      }
+      parts.push('Priorities should focus on prevention, preparedness, and mitigation aligned to the highest residual risks.');
+
+      el('narrative').textContent = parts.join(' ');
+    }
+
+    // ===== Persistence (Pluggable) =====
+    // Adapters: IndexedDB (default) and LocalStorage (fallback). You can add more (e.g., SharePoint) later.
+    const DB_NAME='crr_demo_db_v8';
+    const DB_VERSION=1; const STORE='risks';
+    let editingId=null;
+
+    // --- LocalStorage adapter ---
+    const LocalStore = {
+      key: (id)=> `crr_${id}`,
+      idxKey: 'crr_index',
+      _readIndex(){ try{ return JSON.parse(localStorage.getItem(this.idxKey)||'[]'); }catch{ return []; } },
+      _writeIndex(ids){ try{ localStorage.setItem(this.idxKey, JSON.stringify(ids)); }catch{} },
+      add(rec){
+        const ids=this._readIndex();
+        const id = (ids.length? Math.max(...ids):0) + 1;
+        const withId = {...rec, id};
+        try{ localStorage.setItem(this.key(id), JSON.stringify(withId)); }catch{}
+        ids.push(id); this._writeIndex(ids);
+        return Promise.resolve({ id });
+      },
+      put(rec){
+        if(!rec.id) return this.add(rec);
+        const ids=this._readIndex(); if(!ids.includes(rec.id)){ ids.push(rec.id); this._writeIndex(ids); }
+        try{ localStorage.setItem(this.key(rec.id), JSON.stringify(rec)); }catch{}
+        return Promise.resolve({ id: rec.id });
+      },
+      getAll(){
+        const ids=this._readIndex();
+        const items = ids.map(id=>{ try{ return JSON.parse(localStorage.getItem(this.key(id))||'null'); }catch{ return null; } }).filter(Boolean);
+        return Promise.resolve(items);
+      },
+      get(id){ try{ return Promise.resolve(JSON.parse(localStorage.getItem(this.key(id))||'null')); }catch{ return Promise.resolve(null); } },
+      delete(id){ const ids=this._readIndex().filter(x=> x!==id); this._writeIndex(ids); try{ localStorage.removeItem(this.key(id)); }catch{} return Promise.resolve(); }
+    };
+
+    // --- IndexedDB adapter ---
+    const IdbStore = {
+      _open(){
+        return new Promise((resolve,reject)=>{
+          const req=indexedDB.open(DB_NAME, DB_VERSION);
+          req.onupgradeneeded=(e)=>{ const db=e.target.result; if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'id',autoIncrement:true}); };
+          req.onsuccess=()=>resolve(req.result);
+          req.onerror=()=>reject(req.error);
+        });
+      },
+      async add(rec){ const db=await this._open(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE); const rq=st.add(rec); rq.onsuccess=()=>{ const id=rq.result; db.close(); res({id}); }; rq.onerror=()=>{ db.close(); rej(rq.error); }; }); },
+      async put(rec){ const db=await this._open(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE); const rq=st.put(rec); rq.onsuccess=()=>{ db.close(); res({id: rec.id ?? rq.result}); }; rq.onerror=()=>{ db.close(); rej(rq.error); }; }); },
+      async getAll(){ const db=await this._open(); return new Promise((res,_)=>{ const tx=db.transaction(STORE,'readonly'); tx.objectStore(STORE).getAll().onsuccess=(e)=>{ const items=e.target.result||[]; db.close(); res(items); }; }); },
+      async get(id){ const db=await this._open(); return new Promise((res,_)=>{ const tx=db.transaction(STORE,'readonly'); tx.objectStore(STORE).get(id).onsuccess=(e)=>{ const item=e.target.result||null; db.close(); res(item); }; }); },
+      async delete(id){ const db=await this._open(); return new Promise((res,_)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(id).onsuccess=()=>{ db.close(); res(); }; }); }
+    };
+
+    // Provider switcher
+    function currentStore(){ return (document.getElementById('storageSel')?.value==='ls') ? LocalStore : IdbStore; }
+
+    function openDB(cb){
+      const req=indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded=(e)=>{
+        const db=e.target.result;
+        if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
+      };
+      req.onsuccess=()=>cb(req.result);
+      req.onerror=()=>console.error('DB error', req.error);
+    }
+
+    function collectCurrent(){
+      const inputs={}; CFG.categories.forEach(c=> c.sub.forEach(sf=> inputs[sf.id]=el(sf.id).value ));
+      inputs[CFG.likelihoodId]=el(CFG.likelihoodId).value;
+      const rolls={}; const adjs={}; const effs={}; const enabled={}; const risks={};
+      CFG.categories.forEach(c=>{ const r=calcAdjusted(c); rolls[c.key]=r.base; adjs[c.key]=r.adj; effs[c.key]=r.eff; enabled[c.key]=enabledOf(c.key); });
+      const like=clamp15(inputs[CFG.likelihoodId]);
+      Object.keys(adjs).forEach(k=>{ if(enabled[k]) risks[k]=round1(adjs[k]*like); });
+      const currentVals = Object.entries(adjs).filter(([k,_])=> enabled[k]).map(([_,v])=>v);
+      const overall = round1((currentVals.length? Math.max(...currentVals):0) * like);
+      const mitigations={}; CFG.categories.forEach(c=> mitigations[c.key]=getMitigations(c.key));
+      const gaps={}; CFG.categories.forEach(c=> gaps[c.key]=getGaps(c.key));
+      return {
+        ...(editingId!=null?{id:editingId}:{ }),
+        title:(el('riskTitle').value||'Untitled Risk').trim(),
+        framework7:{ inputs, rolls, adjs, risks, effs, like, overall, mitigations, gaps, enabled, mitigationSteps: CFG.mitigationSteps },
+        narrative: el('narrative').textContent,
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    function saveCurrent(){
+      const rec=collectCurrent();
+      const store=currentStore();
+      const op = (editingId!=null) ? store.put(rec) : store.add(rec);
+      op.then(({id})=>{ editingId = id || editingId; refreshTable(); switchToList(); })
+        .catch(err=>{ console.error('Save failed', err); alert('Save failed: '+(err?.message||err)); });
+    }
+
+    function getAll(cb){ currentStore().getAll().then(items=> cb(items||[])); }
+
+    function renderTable(items){
+      const tbody=document.getElementById('hazardsTbody');
+      if(!items.length){ tbody.innerHTML='<tr><td colspan="11" class="py-3 text-slate-500">No records yet. Click <strong>Add New Hazard</strong> to create one.</td></tr>'; return; }
+      const rows=items.sort((a,b)=> (a.createdAt>b.createdAt?-1:1)).map(r=>{
+        const f=r.framework7||{}; const adjs=f.adjs||{}; const enabled=f.enabled||{}; const risks=f.risks||{}; const like=f.like||0;
+        const show = (k)=> {
+          if(enabled[k]===false) return '-';
+          // Prefer risk (impact × L); fallback to adj × like; fallback to adj
+          if(Number.isFinite(risks[k])) return risks[k];
+          if(Number.isFinite(adjs[k]) && Number.isFinite(like)) return round1(Number(adjs[k]) * Number(like));
+          return adjs[k] ?? '-';
+        };
+        const date=r.createdAt? new Date(r.createdAt).toLocaleString():'';
+        const overall=f.overall??'-';
+        return `<tr class=\"border-b hover:bg-slate-50 cursor-pointer\" data-id=\"${r.id}\">\n          <td class=\"py-2 pr-4\">${r.title}</td>\n          <td class=\"py-2 pr-4\">${show('people')}</td>\n          <td class=\"py-2 pr-4\">${show('buildings')}</td>\n          <td class=\"py-2 pr-4\">${show('environment')}</td>\n          <td class=\"py-2 pr-4\">${show('ff')}</td>\n          <td class=\"py-2 pr-4\">${show('community')}</td>\n          <td class=\"py-2 pr-4\">${show('economy')}</td>\n          <td class=\"py-2 pr-4\">${show('reputation')}</td>\n          <td class=\"py-2 pr-4\">${overall}</td>\n          <td class=\"py-2 pr-4 text-slate-500\">${date}</td>\n          <td class=\"py-2 pr-4\">\n            <button data-action=\"edit\" data-id=\"${r.id}\" class=\"px-2 py-1 rounded-lg border mr-1\">Edit</button>\n            <button data-action=\"dup\" data-id=\"${r.id}\" class=\"px-2 py-1 rounded-lg border mr-1\">Duplicate</button>\n            <button data-action=\"del\" data-id=\"${r.id}\" class=\"px-2 py-1 rounded-lg border border-rose-300 text-rose-700\">Delete</button>\n          </td>\n        </tr>`;
+      }).join('');
+      tbody.innerHTML=rows;
+      tbody.querySelectorAll('tr').forEach(tr=>{
+        tr.addEventListener('click',(e)=>{
+          const id=Number(tr.dataset.id);
+          const act=e.target?.dataset?.action;
+          if(act==='del'){ e.stopPropagation(); deleteRisk(id); return; }
+          if(act==='dup'){ e.stopPropagation(); duplicateRisk(id); return; }
+          loadRisk(id);
+        });
+      });
+    }
+
+    function refreshTable(){ getAll(renderTable); }
+    document.getElementById('storageSel').addEventListener('change', ()=>{ refreshTable(); switchToList(); });
+
+    function deleteRisk(id){ currentStore().delete(id).then(()=> refreshTable()); }
+
+    function duplicateRisk(id){
+      const store=currentStore();
+      store.get(id).then(r=>{
+        if(!r) return;
+        const { id:_omit, ...rest } = r;
+        const copy={ ...rest, title: r.title+' (copy)', createdAt: new Date().toISOString() };
+        return store.add(copy);
+      }).then(()=> refreshTable()).catch(err=>{ console.error('Duplicate failed', err); alert('Duplicate failed: '+(err?.message||err)); });
+    }
+
+    // ===== Export / Import / Deep-link =====
+    function toBase64Safe(str){ try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(str); } }
+    function fromBase64Safe(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return atob(b64); } }
+
+    function getAppUrl(){
+      const href = (window.location && window.location.href ? window.location.href : '').split('#')[0];
+      if(/^https?:/i.test(href)) return href;
+      const meta = document.querySelector('meta[data-app-url]');
+      if(meta && /^https?:/i.test(meta.content)) return meta.content.trim();
+      try{ const saved = localStorage.getItem('crr_app_url'); if(saved && /^https?:/i.test(saved)) return saved; }catch(_){ }
+      const guess = typeof prompt==='function' ? prompt('Enter the public URL where this app is hosted (e.g. https://yourdomain/app.html):', '') : '';
+      if(guess && /^https?:/i.test(guess.trim())){ try{ localStorage.setItem('crr_app_url', guess.trim()); }catch(_){} return guess.trim(); }
+      return '';
+    }
+
+    function exportAll(){
+      getAll(items=>{
+        const payload={ version:1, exportedAt:new Date().toISOString(), items };
+        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='community_risks.json'; a.click(); URL.revokeObjectURL(url);
+      });
+    }
+
+    function importJSON(file){
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try{
+          const data=JSON.parse(reader.result);
+          const items=Array.isArray(data)?data:(Array.isArray(data.items)?data.items:[]);
+          if(!items.length){ alert('No items found in JSON'); return; }
+          openDB(db=>{
+            const tx=db.transaction(STORE,'readwrite'); const store=tx.objectStore(STORE);
+            items.forEach(it=>{ const {id:_omit, ...rest}=it||{}; store.add({...rest, createdAt:new Date().toISOString()}); });
+            tx.oncomplete=()=>{ db.close(); refreshTable(); alert('Import complete'); };
+          });
+        }catch(err){ console.error(err); alert('Invalid JSON file'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function importFromHash(){
+      if(!location.hash || !location.hash.startsWith('#import=')) return;
+      const enc=location.hash.slice('#import='.length);
+      try{
+        const json=fromBase64Safe(enc); const data=JSON.parse(json);
+        const items=Array.isArray(data)?data:(Array.isArray(data.items)?data.items:[]);
+        if(!items.length){ alert('No items found in link'); return; }
+        openDB(db=>{ const tx=db.transaction(STORE,'readwrite'); const store=tx.objectStore(STORE);
+          items.forEach(it=>{ const {id:_omit, ...rest}=it||{}; store.add({...rest, createdAt:new Date().toISOString()}); });
+          tx.oncomplete=()=>{ db.close(); refreshTable(); alert('Imported from link'); };
+        });
+      }catch(e){ console.error('Hash import failed', e); alert('Failed to import from link'); }
+      finally { history.replaceState(null, document.title, location.pathname + location.search); }
+    }
+
+    function downloadLauncher(){
+      getAll(items=>{
+        const payload={ version:1, exportedAt:new Date().toISOString(), items };
+        const enc=toBase64Safe(JSON.stringify(payload));
+        const appUrl = getAppUrl();
+        if(!appUrl){ alert('I can\'t determine where to open the launcher (no HTTP URL available).\n\nOptions:\n • Host this page and add <meta data-app-url="https://yourdomain/app.html">\n • Or click Copy Import Link after setting an app URL.'); return; }
+        const target=appUrl + '#import=' + enc;
+        const launcher='<!doctype html>'+
+          '<html><head><meta charset="utf-8"><title>Risk Register Launcher</title></head><body>'+
+          '<script>location.href = "'+ target.replace(/"/g,'&quot;') +'";<\/script>'+
+          '<p>Launching Community Risk Register...</p>'+
+          '</body></html>';
+        const blob=new Blob([launcher],{type:'text/html'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='launch_community_risks.html';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=> URL.revokeObjectURL(url), 1000);
+      });
+    }
+
+    // ===== View switching & dirty tracking =====
+    function getFormState(){
+      const s={ title: (el('riskTitle').value||'').trim() };
+      CFG.categories.forEach(c=> c.sub.forEach(sf=> s[sf.id]=el(sf.id).value ));
+      s[CFG.likelihoodId]=el(CFG.likelihoodId).value;
+      CFG.categories.forEach(c=> s['mit_'+c.key] = getMitigations(c.key).join('|') );
+      CFG.categories.forEach(c=> s['gap_'+c.key] = getGaps(c.key).join('|') );
+      CFG.categories.forEach(c=> s['eff_'+c.key] = el('eff_'+c.key).value );
+      CFG.categories.forEach(c=> s['en_'+c.key] = enabledOf(c.key) ? '1' : '0');
+      return s;
+    }
+    let baseline=null;
+    function snapshot(){ baseline=getFormState(); }
+    function isDirty(){ if(!baseline) return false; return JSON.stringify(getFormState())!==JSON.stringify(baseline); }
+
+    function showModal(){ el('leaveModal').classList.remove('hidden'); el('leaveModal').classList.add('flex'); }
+    function hideModal(){ el('leaveModal').classList.add('hidden'); el('leaveModal').classList.remove('flex'); }
+    let pendingLeave=null;
+    el('keepEditingBtn').addEventListener('click', ()=>{ pendingLeave=null; hideModal(); });
+    el('discardChangesBtn').addEventListener('click', ()=>{ const fn=pendingLeave; pendingLeave=null; hideModal(); if(typeof fn==='function') fn(); });
+
+    function switchToList(){
+      document.getElementById('listView').classList.remove('hidden');
+      document.getElementById('editorView').classList.add('hidden');
+      editingId=null; baseline=null;
+    }
+    function switchToEditor(){
+      document.getElementById('listView').classList.add('hidden');
+      document.getElementById('editorView').classList.remove('hidden');
+      snapshot();
+    }
+    function attemptLeave(next){ if(isDirty()){ pendingLeave=next; showModal(); } else { next(); } }
+
+    function loadRisk(id){
+      const store=currentStore();
+      store.get(id).then(r=>{
+        if(!r) return;
+        editingId=r.id;
+        el('riskTitle').value=r.title||'';
+        const f=r.framework7||{}; const inputs=f.inputs||{}; const enabled=f.enabled||{};
+        CFG.categories.forEach(c=> c.sub.forEach(sf=>{ if(el(sf.id)) el(sf.id).value = inputs[sf.id] ?? 3; }));
+        if(el(CFG.likelihoodId)) el(CFG.likelihoodId).value = inputs[CFG.likelihoodId] ?? 3;
+        const effs=f.effs||{}; CFG.categories.forEach(c=>{ if(el('eff_'+c.key)) el('eff_'+c.key).value = effs[c.key] ?? 1; });
+        const mits=(f.mitigations)||{}; CFG.categories.forEach(c=> setMitigations(c.key, mits[c.key]||[]));
+        const gaps=(f.gaps)||{}; CFG.categories.forEach(c=> setGaps(c.key, gaps[c.key]||[]));
+        CFG.categories.forEach(c=>{ const chk = el('en_'+c.key); if(chk){ chk.checked = enabled[c.key]===true; toggleSectionBody(c.key, chk.checked); } });
+        recalc();
+        el('narrative').textContent = r.narrative || el('narrative').textContent;
+        switchToEditor();
+      });
+    }
+
+    // ===== Wire up =====
+    function toggleSectionBody(key, on){
+      const body = el('sec_'+key+'_body');
+      if(!body) return;
+      if(on){ body.classList.remove('hidden'); body.classList.remove('opacity-50'); }
+      else { body.classList.add('hidden'); }
+    }
+
+    function wire(){
+      // Inputs
+      CFG.categories.forEach(c=> c.sub.forEach(sf=> el(sf.id).addEventListener('input', recalc)));
+      el(CFG.likelihoodId).addEventListener('input', recalc);
+      CFG.categories.forEach(c=> el('eff_'+c.key).addEventListener('input', recalc));
+
+      // Include toggles
+      CFG.categories.forEach(c=>{
+        const chk = el('en_'+c.key);
+        if(chk){
+          chk.addEventListener('change', ()=>{ toggleSectionBody(c.key, chk.checked); recalc(); });
+        }
+      });
+
+      // Mitigations & Gaps add / Enter
+      CFG.categories.forEach(c=>{
+        // Mitigations
+        const mitAddBtn = el(`mit_${c.key}_add`);
+        const mitInp = el(`mit_${c.key}_input`);
+        if(mitAddBtn) mitAddBtn.addEventListener('click', ()=> addMitigation(c.key));
+        if(mitInp) mitInp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addMitigation(c.key); }});
+        // Gaps
+        const gapAddBtn = el(`gap_${c.key}_add`);
+        const gapInp = el(`gap_${c.key}_input`);
+        if(gapAddBtn) gapAddBtn.addEventListener('click', ()=> addGap(c.key));
+        if(gapInp) gapInp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addGap(c.key); }});
+      });
+
+      // Buttons
+      el('exportBtn').addEventListener('click', exportAll);
+      el('copyLinkBtn').addEventListener('click', ()=>{
+        getAll(items=>{
+          const payload={ version:1, exportedAt:new Date().toISOString(), items };
+          const enc=toBase64Safe(JSON.stringify(payload));
+          const appUrl = getAppUrl();
+          if(!appUrl){ alert('Unable to determine an HTTP URL for this app. Add <meta data-app-url="https://yourdomain/app.html"> or host the page and retry.'); return; }
+          const link=appUrl + '#import=' + enc;
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(link).then(()=> alert('Import link copied to clipboard.')).catch(()=>{ prompt('Copy this link:', link); });
+          } else { prompt('Copy this link:', link); }
+        });
+      });
+      el('downloadLinkBtn').addEventListener('click', downloadLauncher);
+      el('importInput').addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(f) importJSON(f); e.target.value=''; });
+      el('generateBtn').addEventListener('click', genNarrative);
+      el('saveBtn').addEventListener('click', saveCurrent);
+      el('addNewBtn').addEventListener('click', ()=>{
+        editingId=null; el('riskTitle').value='';
+        CFG.categories.forEach(c=>{ c.sub.forEach(sf=> el(sf.id).value=3 ); if(el('eff_'+c.key)) el('eff_'+c.key).value=1; setMitigations(c.key, []); setGaps(c.key, []); const chk=el('en_'+c.key); if(chk){ chk.checked=false; toggleSectionBody(c.key, false);} });
+        el(CFG.likelihoodId).value=3; recalc();
+        el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
+        switchToEditor();
+      });
+      el('backToListBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
+      el('cancelBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
+      // row buttons are attached inside renderTable()
+    }
+
+    // ===== Boot =====
+    buildCategoryBlocks();
+    buildPillsDynamic({}, {}, 0);
+    wire();
+    importFromHash();
+    refreshTable();
+    switchToList();
+    recalc();
+
+    // ===== Self-tests =====
+    (function tests(){
+      // 1) calcRoll example: 5,4,3 => 5.7
+      try{
+        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3;
+        const econCat = CFG.categories.find(c=>c.key==='economy');
+        const r = calcRoll(econCat);
+        console.assert(Math.abs(r-5.7)<1e-9, 'calcRoll(5,4,3) should be 5.7, got '+r);
+      }catch(e){ console.error('Test calcRoll failed', e); }
+
+      // 2) mitigation effectiveness (stepped to 60%)
+      try{
+        CFG.categories.find(c=>c.key==='people').sub.forEach(sf=> el(sf.id).value=5);
+        el('eff_people').value=5; const chk = el('en_people'); chk.checked=true; toggleSectionBody('people', true); recalc();
+        console.assert(Number(el('roll_people').textContent)===6.0, 'Base people roll should be 6.0');
+        console.assert(Number(el('roll_adj_people').textContent)===2.4, 'Adjusted people roll should be 2.4 at eff=5 (60%)');
+      }catch(e){ console.error('Test mitigation scaling failed', e); }
+
+      // 3) overall and per-section risk use impact × L considering only enabled categories
+      try{
+        // Enable economy only and likelihood 5
+        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); ck.checked=false; toggleSectionBody(c.key,false); });
+        const cke = el('en_economy'); cke.checked=true; toggleSectionBody('economy', true);
+        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3; // economy impact = 5.7 base
+        el('eff_economy').value=1; // no reduction
+        el(CFG.likelihoodId).value=5; recalc();
+        // Overall should be 5.7 * 5 = 28.5
+        console.assert(Number(el('overall_out').textContent)===28.5, 'Overall (max impact × L) should be 28.5');
+        // Per-section pill for Economy should be 28.5 too
+        const econPill = el('pill_economy');
+        console.assert(Number(econPill.textContent)===28.5, 'Economy pill should be impact × L');
+      }catch(e){ console.error('Test enabled filter + per-section risk failed', e); }
+
+      // 4) Mitigations add/collect
+      try{
+        setMitigations('people', []); addMitigation('people', 'HFSC programme');
+        const m = getMitigations('people');
+        console.assert(m.length===1 && m[0]==='HFSC programme', 'Mitigations should collect one entry');
+      }catch(e){ console.error('Test mitigations failed', e); }
+
+      // 5) UI presence
+      ['addNewBtn','exportBtn','importInput','copyLinkBtn','downloadLinkBtn','saveBtn','generateBtn','hazardsTable','leaveModal']
+        .forEach(id=> console.assert(!!el(id), 'Missing UI element '+id));
+
+      // 6) Gaps add/collect
+      try{
+        setGaps('people', []); addGap('people', 'No nighttime cover in sector 3');
+        const g = getGaps('people');
+        console.assert(g.length===1 && g[0]==='No nighttime cover in sector 3', 'Gaps should collect one entry');
+      }catch(e){ console.error('Test gaps failed', e); }
+
+      // 7) Summary pills should show 0.0 safely when nothing enabled
+      try{
+        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); if(ck){ ck.checked=false; toggleSectionBody(c.key,false); }});
+        buildPillsDynamic({}, {}, 0);
+        const ov = el('pill_overall');
+        console.assert(ov && ov.textContent==='0.0', 'Overall pill default should be 0.0');
+      }catch(e){ console.error('Test pills default failed', e); }
+
+      // 8) Disabled category should not render a pill in summary
+      try{
+        const chkR = el('en_reputation');
+        chkR.checked=false; toggleSectionBody('reputation', false);
+        buildPillsDynamic({}, {}, 0);
+        console.assert(!el('pill_reputation'), 'Disabled category should not render a pill');
+        // restore
+        recalc();
+      }catch(e){ console.error('Test disabled pill render failed', e); }
+    })();
+  </script>
+</body>
+</html>
