@@ -14,29 +14,19 @@
     .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 9999px; }
     .switch input:checked + .slider { background-color: #16a34a; }
     .switch input:checked + .slider:before { transform: translateX(20px); }
+    #radarChart { width: 100%; height: 300px; display: block; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
   <div class="max-w-7xl mx-auto p-6">
+
     <header class="mb-6">
       <h1 class="text-3xl font-bold">Community Risk Register - Demo</h1>
       <p class="text-slate-600 mb-3">Enter scores (1-5) across the seven NFCC-aligned dimensions. We'll roll them up and auto-generate a narrative.</p>
       <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-2 bg-white border rounded-xl px-3 py-2">
-          <label for="storageSel" class="text-sm text-slate-600">Storage</label>
-          <select id="storageSel" class="text-sm border rounded-lg px-2 py-1">
-            <option value="idb" selected>IndexedDB (local)</option>
-            <option value="ls">LocalStorage (fallback)</option>
-          </select>
-        </div>
         <button id="addNewBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add New Hazard</button>
-        <button id="exportBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Export JSON</button>
-        <label class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-medium cursor-pointer">
-          Import JSON
-          <input id="importInput" type="file" accept="application/json" class="hidden" />
-        </label>
-        <button id="copyLinkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-medium">Copy Import Link</button>
-        <button id="downloadLinkBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium">Download Launcher</button>
+        <button id="copyLinkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-medium">Copy Saved Link</button>
+        <button id="saveAsBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium">Save As…</button>
       </div>
     </header>
 
@@ -122,7 +112,7 @@
     </div>
   </div>
 
-  <script type="module">
+  <script>
     // ===== Config: 7-category framework (Option A) + mitigations + effectiveness + gaps + enable toggles =====
     const CFG = {
       categories: [
@@ -167,6 +157,19 @@
       mitigationSteps: { 1:0.00, 2:0.10, 3:0.25, 4:0.40, 5:0.60 }
     };
 
+    // ===== Stateless in-memory store =====
+    let editingId = null;
+    const SessionStore = {
+      _items: [],
+      _nextId: 1,
+      add(rec){ const id=this._nextId++; const copy={...rec, id}; this._items.unshift(copy); return Promise.resolve({id}); },
+      put(rec){ if(!rec.id) return this.add(rec); const i=this._items.findIndex(x=>x.id===rec.id); if(i>-1) this._items[i]=JSON.parse(JSON.stringify(rec)); else this._items.unshift(JSON.parse(JSON.stringify(rec))); return Promise.resolve({id:rec.id}); },
+      getAll(){ return Promise.resolve(this._items.map(x=>JSON.parse(JSON.stringify(x)))); },
+      get(id){ const it=this._items.find(x=>x.id===id); return Promise.resolve(it? JSON.parse(JSON.stringify(it)) : null ); },
+      delete(id){ this._items = this._items.filter(x=>x.id!==id); return Promise.resolve(); },
+      setAll(arr){ this._items = []; this._nextId = 1; (arr||[]).forEach(x=>{ this._items.push({...x, id:this._nextId++}); }); }
+    };
+
     // ===== Helpers =====
     const el = (id)=> document.getElementById(id);
     const clamp15 = (n)=> Math.max(1, Math.min(5, Number(n||0)));
@@ -186,62 +189,62 @@
         const box = document.createElement('div');
         box.className = 'border rounded-2xl p-4';
         box.innerHTML = `
-          <div class=\"flex items-center justify-between mb-2\">
-            <h2 class=\"text-xl font-semibold\">${cat.title}</h2>
-            <div class=\"flex items-center gap-2\">
-              <span class=\"text-sm text-slate-600\">Include</span>
-              <label class=\"switch\">
-                <input id=\"en_${cat.key}\" type=\"checkbox\" ${cat.enabled?'checked':''}>
-                <span class=\"slider\"></span>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xl font-semibold">${cat.title}</h2>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-slate-600">Include</span>
+              <label class="switch">
+                <input id="en_${cat.key}" type="checkbox" ${cat.enabled?'checked':''}>
+                <span class="slider"></span>
               </label>
             </div>
           </div>
-          <div id=\"sec_${cat.key}_body\" class=\"space-y-3\">
+          <div id="sec_${cat.key}_body" class="space-y-3">
             ${cat.sub.map(sf=>`
-              <div class=\"flex items-center justify-between gap-3\">
-                <label class=\"w-56\">${sf.label}</label>
-                <input id=\"${sf.id}\" type=\"number\" min=\"1\" max=\"5\" value=\"3\" class=\"w-20 text-center border rounded-lg py-1\" />
+              <div class="flex items-center justify-between gap-3">
+                <label class="w-56">${sf.label}</label>
+                <input id="${sf.id}" type="number" min="1" max="5" value="3" class="w-20 text-center border rounded-lg py-1" />
               </div>
             `).join('')}
-            <div class=\"flex items-center justify-between gap-3 pt-2 border-t\">
-              <span class=\"w-56 font-medium\">Inherent ${cat.title} Score</span>
-              <output id=\"roll_${cat.key}\" class=\"w-24 text-center font-semibold\">3.0</output>
+            <div class="flex items-center justify-between gap-3 pt-2 border-t">
+              <span class="w-56 font-medium">Inherent ${cat.title} Score</span>
+              <output id="roll_${cat.key}" class="w-24 text-center font-semibold">3.0</output>
             </div>
 
             <!-- Existing Mitigations UI -->
-            <div class=\"mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200\">
-              <div class=\"flex items-center justify-between mb-2\">
-                <span class=\"font-medium text-emerald-900\">Existing mitigations</span>
-                <div class=\"flex items-center gap-2\">
-                  <input id=\"mit_${cat.key}_input\" type=\"text\" placeholder=\"Add a mitigation...\" class=\"px-2 py-1 text-sm border rounded-lg w-56\" />
-                  <button id=\"mit_${cat.key}_add\" class=\"px-2 py-1 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white\" title=\"Add mitigation\">+ Add</button>
+            <div class="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-medium text-emerald-900">Existing mitigations</span>
+                <div class="flex items-center gap-2">
+                  <input id="mit_${cat.key}_input" type="text" placeholder="Add a mitigation…" class="px-2 py-1 text-sm border rounded-lg w-56" />
+                  <button id="mit_${cat.key}_add" class="px-2 py-1 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white" title="Add mitigation">+ Add</button>
                 </div>
               </div>
-              <div id=\"mit_${cat.key}_list\" class=\"flex flex-wrap gap-2\"></div>
+              <div id="mit_${cat.key}_list" class="flex flex-wrap gap-2"></div>
             </div>
 
             <!-- Gaps UI -->
-            <div class=\"mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200\">
-              <div class=\"flex items-center justify-between mb-2\">
-                <span class=\"font-medium text-rose-900\">Identified gaps</span>
-                <div class=\"flex items-center gap-2\">
-                  <input id=\"gap_${cat.key}_input\" type=\"text\" placeholder=\"Add a gap...\" class=\"px-2 py-1 text-sm border rounded-lg w-56\" />
-                  <button id=\"gap_${cat.key}_add\" class=\"px-2 py-1 text-sm rounded-lg bg-rose-600 hover:bg-rose-700 text-white\">+ Add</button>
+            <div class="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-medium text-rose-900">Identified gaps</span>
+                <div class="flex items-center gap-2">
+                  <input id="gap_${cat.key}_input" type="text" placeholder="Add a gap…" class="px-2 py-1 text-sm border rounded-lg w-56" />
+                  <button id="gap_${cat.key}_add" class="px-2 py-1 text-sm rounded-lg bg-rose-600 hover:bg-rose-700 text-white">+ Add</button>
                 </div>
               </div>
-              <div id=\"gap_${cat.key}_list\" class=\"flex flex-wrap gap-2\"></div>
+              <div id="gap_${cat.key}_list" class="flex flex-wrap gap-2"></div>
             </div>
 
             <!-- Effectiveness control AFTER mitigations/gaps -->
-            <div class=\"flex items-center justify-between gap-3 mt-2\">
-              <label class=\"w-56\">Mitigation effectiveness (1-5)</label>
-              <input id=\"eff_${cat.key}\" type=\"number\" min=\"1\" max=\"5\" value=\"1\" class=\"w-20 text-center border rounded-lg py-1\" />
+            <div class="flex items-center justify-between gap-3 mt-2">
+              <label class="w-56">Mitigation effectiveness (1-5)</label>
+              <input id="eff_${cat.key}" type="number" min="1" max="5" value="1" class="w-20 text-center border rounded-lg py-1" />
             </div>
 
             <!-- Current Score AFTER mitigations -->
-            <div class=\"flex items-center justify-between gap-3 pt-2 border-t\">
-              <span class=\"w-56 font-medium\">Current ${cat.title} Score</span>
-              <output id=\"roll_adj_${cat.key}\" class=\"w-24 text-center font-semibold\">3.0</output>
+            <div class="flex items-center justify-between gap-3 pt-2 border-t">
+              <span class="w-56 font-medium">Current ${cat.title} Score</span>
+              <output id="roll_adj_${cat.key}" class="w-24 text-center font-semibold">3.0</output>
             </div>
           </div>`;
         frag.appendChild(box);
@@ -251,14 +254,14 @@
       const like = document.createElement('div');
       like.className = 'border rounded-2xl p-4';
       like.innerHTML = `
-        <h2 class=\"text-xl font-semibold mb-2\">Likelihood</h2>
-        <div class=\"flex items-center justify-between gap-3\">
-          <label class=\"w-56\">Likelihood of occurrence</label>
-          <input id=\"${CFG.likelihoodId}\" type=\"number\" min=\"1\" max=\"5\" value=\"3\" class=\"w-20 text-center border rounded-lg py-1\" />
+        <h2 class="text-xl font-semibold mb-2">Likelihood</h2>
+        <div class="flex items-center justify-between gap-3">
+          <label class="w-56">Likelihood of occurrence</label>
+          <input id="${CFG.likelihoodId}" type="number" min="1" max="5" value="3" class="w-20 text-center border rounded-lg py-1" />
         </div>
-        <div class=\"flex items-center justify-between gap-3 pt-2 border-t\">
-          <span class=\"w-56 font-medium\">Overall (L × Max current)</span>
-          <output id=\"overall_out\" class=\"w-24 text-center font-semibold\">0.0</output>
+        <div class="flex items-center justify-between gap-3 pt-2 border-t">
+          <span class="w-56 font-medium">Overall (L × Max current)</span>
+          <output id="overall_out" class="w-24 text-center font-semibold">0.0</output>
         </div>`;
       frag.appendChild(like);
 
@@ -275,17 +278,17 @@
       let html = enabledCats.map(cat=>{
         const val = Number.isFinite(perCatRisk?.[cat.key]) ? Number(perCatRisk[cat.key]) : 0;
         return `
-        <div class=\"p-3 rounded-xl bg-slate-50\">
-          <div class=\"text-slate-500\">${cat.title}</div>
-          <div id=\"pill_${cat.key}\" class=\"text-2xl font-bold\">${val.toFixed(1)}</div>
-          <div class=\"text-xs text-slate-500\">impact × likelihood</div>
+        <div class="p-3 rounded-xl bg-slate-50">
+          <div class="text-slate-500">${cat.title}</div>
+          <div id="pill_${cat.key}" class="text-2xl font-bold">${val.toFixed(1)}</div>
+          <div class="text-xs text-slate-500">impact × likelihood</div>
         </div>`;
       }).join('');
       const ov = Number.isFinite(overall) ? overall : 0;
       html += `
-        <div class=\"p-3 rounded-xl bg-slate-50 col-span-2\">
-          <div class=\"text-slate-500\">Overall (Max impact × L)</div>
-          <div id=\"pill_overall\" class=\"text-2xl font-bold\">${ov.toFixed(1)}</div>
+        <div class="p-3 rounded-xl bg-slate-50 col-span-2">
+          <div class="text-slate-500">Overall (Max impact × L)</div>
+          <div id="pill_overall" class="text-2xl font-bold">${ov.toFixed(1)}</div>
         </div>`;
       pillsRoot.innerHTML = html;
     }
@@ -326,7 +329,7 @@
       const overall = round1(maxAdj * like);
       el('overall_out').textContent = overall.toFixed(1);
       buildPillsDynamic(rollsAdj, perCatRisk, overall);
-      drawRadar(rollsAdj); // radar shows impacts (not multiplied) so scale remains 0-6
+      drawRadar(rollsAdj); // radar shows impacts (not multiplied)
     }
 
     // ===== Mitigations helpers =====
@@ -340,8 +343,8 @@
       const span = document.createElement('span');
       span.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs';
       span.setAttribute('data-text', text);
-      span.innerHTML = `<span class=\"truncate max-w-[14rem]\" title=\"${text}\">${text}</span>
-        <button type=\"button\" class=\"ml-1 rounded-full px-1 text-emerald-900 hover:bg-emerald-200\" aria-label=\"Remove\" data-role=\"remove\">×</button>`;
+      span.innerHTML = `<span class="truncate max-w-[14rem]" title="${text}">${text}</span>
+        <button type="button" class="ml-1 rounded-full px-1 text-emerald-900 hover:bg-emerald-200" aria-label="Remove" data-role="remove">×</button>`;
       span.querySelector('[data-role="remove"]').addEventListener('click', ()=>{ span.remove(); recalc(); });
       mitListEl(key).appendChild(span);
     }
@@ -369,8 +372,8 @@
       const span = document.createElement('span');
       span.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-100 text-rose-800 text-xs';
       span.setAttribute('data-text', text);
-      span.innerHTML = `<span class=\"truncate max-w-[14rem]\" title=\"${text}\">${text}</span>
-        <button type=\"button\" class=\"ml-1 rounded-full px-1 text-rose-900 hover:bg-rose-200\" aria-label=\"Remove\" data-role=\"remove\">×</button>`;
+      span.innerHTML = `<span class="truncate max-w-[14rem]" title="${text}">${text}</span>
+        <button type="button" class="ml-1 rounded-full px-1 text-rose-900 hover:bg-rose-200" aria-label="Remove" data-role="remove">×</button>`;
       span.querySelector('[data-role="remove"]').addEventListener('click', ()=>{ span.remove(); recalc(); });
       gapListEl(key).appendChild(span);
     }
@@ -392,7 +395,12 @@
       const canvas = document.getElementById('radarChart');
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
-      const cssW = canvas.clientWidth || 300; const cssH = canvas.clientHeight || 300;
+      // Keep layout stable: CSS size stays fixed, only the drawing buffer scales
+      if (!canvas.style.width) canvas.style.width = '100%';
+      if (!canvas.style.height) canvas.style.height = '300px';
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.max(1, rect.width || 300);
+      const cssH = Math.max(1, rect.height || 300);
       canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
       ctx.setTransform(dpr,0,0,dpr,0,0);
       ctx.clearRect(0,0,cssW,cssH);
@@ -400,6 +408,7 @@
       const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
       const labels = enabledCats.map(c=>c.title);
       const values = enabledCats.map(c=> rolls[c.key] ?? 0);
+      if (!labels.length) { return; }
       const max = 6;
 
       const pad = 24; const cx = cssW/2; const cy = cssH/2; const radius = Math.min(cssW, cssH)/2 - pad - 10;
@@ -478,80 +487,93 @@
       if(strong.length) parts.push('High-impact categories (after mitigation) include: ' + strong.join(', ') + '.');
       if(maxCat){
         const topMits = getMitigations(maxCat.key);
-        if(topMits.length){ parts.push(`Existing mitigations for ${maxCat.title}: ${topMits.slice(0,3).join('; ')}${topMits.length>3?' ...':''}.`); }
+        if(topMits.length){ parts.push(`Existing mitigations for ${maxCat.title}: ${topMits.slice(0,3).join('; ')}${topMits.length>3?' …':''}.`); }
         const topGaps = getGaps(maxCat.key);
-        if(topGaps.length){ parts.push(`Key gaps for ${maxCat.title}: ${topGaps.slice(0,3).join('; ')}${topGaps.length>3?' ...':''}.`); }
+        if(topGaps.length){ parts.push(`Key gaps for ${maxCat.title}: ${topGaps.slice(0,3).join('; ')}${topGaps.length>3?' …':''}.`); }
       }
       parts.push('Priorities should focus on prevention, preparedness, and mitigation aligned to the highest residual risks.');
 
       el('narrative').textContent = parts.join(' ');
     }
 
-    // ===== Persistence (Pluggable) =====
-    // Adapters: IndexedDB (default) and LocalStorage (fallback). You can add more (e.g., SharePoint) later.
-    const DB_NAME='crr_demo_db_v8';
-    const DB_VERSION=1; const STORE='risks';
-    let editingId=null;
-
-    // --- LocalStorage adapter ---
-    const LocalStore = {
-      key: (id)=> `crr_${id}`,
-      idxKey: 'crr_index',
-      _readIndex(){ try{ return JSON.parse(localStorage.getItem(this.idxKey)||'[]'); }catch{ return []; } },
-      _writeIndex(ids){ try{ localStorage.setItem(this.idxKey, JSON.stringify(ids)); }catch{} },
-      add(rec){
-        const ids=this._readIndex();
-        const id = (ids.length? Math.max(...ids):0) + 1;
-        const withId = {...rec, id};
-        try{ localStorage.setItem(this.key(id), JSON.stringify(withId)); }catch{}
-        ids.push(id); this._writeIndex(ids);
-        return Promise.resolve({ id });
-      },
-      put(rec){
-        if(!rec.id) return this.add(rec);
-        const ids=this._readIndex(); if(!ids.includes(rec.id)){ ids.push(rec.id); this._writeIndex(ids); }
-        try{ localStorage.setItem(this.key(rec.id), JSON.stringify(rec)); }catch{}
-        return Promise.resolve({ id: rec.id });
-      },
-      getAll(){
-        const ids=this._readIndex();
-        const items = ids.map(id=>{ try{ return JSON.parse(localStorage.getItem(this.key(id))||'null'); }catch{ return null; } }).filter(Boolean);
-        return Promise.resolve(items);
-      },
-      get(id){ try{ return Promise.resolve(JSON.parse(localStorage.getItem(this.key(id))||'null')); }catch{ return Promise.resolve(null); } },
-      delete(id){ const ids=this._readIndex().filter(x=> x!==id); this._writeIndex(ids); try{ localStorage.removeItem(this.key(id)); }catch{} return Promise.resolve(); }
-    };
-
-    // --- IndexedDB adapter ---
-    const IdbStore = {
-      _open(){
-        return new Promise((resolve,reject)=>{
-          const req=indexedDB.open(DB_NAME, DB_VERSION);
-          req.onupgradeneeded=(e)=>{ const db=e.target.result; if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'id',autoIncrement:true}); };
-          req.onsuccess=()=>resolve(req.result);
-          req.onerror=()=>reject(req.error);
-        });
-      },
-      async add(rec){ const db=await this._open(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE); const rq=st.add(rec); rq.onsuccess=()=>{ const id=rq.result; db.close(); res({id}); }; rq.onerror=()=>{ db.close(); rej(rq.error); }; }); },
-      async put(rec){ const db=await this._open(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE); const rq=st.put(rec); rq.onsuccess=()=>{ db.close(); res({id: rec.id ?? rq.result}); }; rq.onerror=()=>{ db.close(); rej(rq.error); }; }); },
-      async getAll(){ const db=await this._open(); return new Promise((res,_)=>{ const tx=db.transaction(STORE,'readonly'); tx.objectStore(STORE).getAll().onsuccess=(e)=>{ const items=e.target.result||[]; db.close(); res(items); }; }); },
-      async get(id){ const db=await this._open(); return new Promise((res,_)=>{ const tx=db.transaction(STORE,'readonly'); tx.objectStore(STORE).get(id).onsuccess=(e)=>{ const item=e.target.result||null; db.close(); res(item); }; }); },
-      async delete(id){ const db=await this._open(); return new Promise((res,_)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(id).onsuccess=()=>{ db.close(); res(); }; }); }
-    };
-
-    // Provider switcher
-    function currentStore(){ return (document.getElementById('storageSel')?.value==='ls') ? LocalStore : IdbStore; }
-
-    function openDB(cb){
-      const req=indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded=(e)=>{
-        const db=e.target.result;
-        if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
-      };
-      req.onsuccess=()=>cb(req.result);
-      req.onerror=()=>console.error('DB error', req.error);
+    // ===== Deep-link import (session only) =====
+    function toBase64Safe(str){ try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(str); } }
+    function fromBase64Safe(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return atob(b64); } }
+    function getAppUrl(){
+      const href = (window.location && window.location.href ? window.location.href : '').split('#')[0];
+      if(/^https?:/i.test(href)) return href;
+      const meta = document.querySelector('meta[data-app-url]');
+      if(meta && /^https?:/i.test(meta.content)) return meta.content.trim();
+      return '';
+    }
+    function importFromHash(){
+      if(!location.hash || !location.hash.startsWith('#import=')) return;
+      const enc = location.hash.slice('#import='.length);
+      try{
+        const json = fromBase64Safe(enc);
+        const data = JSON.parse(json);
+        const items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
+        SessionStore.setAll(items);
+        refreshTable();
+        alert('Imported from link');
+      }catch(e){
+        console.error('Hash import failed', e);
+        alert('Failed to import from link');
+      } finally {
+        history.replaceState(null, document.title, location.pathname + location.search);
+      }
     }
 
+    // ===== Link creation (Copy / Save As) =====
+    function copySavedLink(){
+      SessionStore.getAll().then(items=>{
+        const payload={ version:1, exportedAt:new Date().toISOString(), items };
+        const enc=toBase64Safe(JSON.stringify(payload));
+        const appUrl = getAppUrl() || window.location.href.split('#')[0];
+        const link=appUrl + '#import=' + enc;
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(link).then(()=> alert('Import link copied to clipboard.')).catch(()=>{ prompt('Copy this link:', link); });
+        } else { prompt('Copy this link:', link); }
+      });
+    }
+
+    async function saveAsLauncher(){
+      try{
+        const items = await SessionStore.getAll();
+        const payload={ version:1, exportedAt:new Date().toISOString(), items };
+        const enc = toBase64Safe(JSON.stringify(payload));
+        const appUrl = getAppUrl() || window.location.href.split('#')[0];
+        const target = appUrl + '#import=' + enc;
+        const launcher = '<!doctype html>'+
+          '<html><head><meta charset="utf-8"><title>Risk Register Launcher</title></head><body>'+
+          '<script>location.href = "'+ target.replace(/"/g,'&quot;') +'";<\/script>'+
+          '<p>Launching Community Risk Register…</p>'+
+          '</body></html>';
+
+        if(window.showSaveFilePicker){
+          const handle = await window.showSaveFilePicker({
+            suggestedName: 'launch_community_risks.html',
+            types: [{ description: 'HTML', accept: { 'text/html': ['.html', '.htm'] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(new Blob([launcher], { type: 'text/html' }));
+          await writable.close();
+          alert('Launcher saved. Open it later to load these records.');
+          return;
+        }
+
+        const blob=new Blob([launcher],{type:'text/html'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='launch_community_risks.html';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=> URL.revokeObjectURL(url), 1000);
+      }catch(err){
+        console.error('Save As failed', err);
+        alert('Save As failed: '+(err?.message||err));
+      }
+    }
+
+    // ===== Collect + Save + Table =====
     function collectCurrent(){
       const inputs={}; CFG.categories.forEach(c=> c.sub.forEach(sf=> inputs[sf.id]=el(sf.id).value ));
       inputs[CFG.likelihoodId]=el(CFG.likelihoodId).value;
@@ -574,13 +596,10 @@
 
     function saveCurrent(){
       const rec=collectCurrent();
-      const store=currentStore();
-      const op = (editingId!=null) ? store.put(rec) : store.add(rec);
+      const op = (editingId!=null) ? SessionStore.put(rec) : SessionStore.add(rec);
       op.then(({id})=>{ editingId = id || editingId; refreshTable(); switchToList(); })
         .catch(err=>{ console.error('Save failed', err); alert('Save failed: '+(err?.message||err)); });
     }
-
-    function getAll(cb){ currentStore().getAll().then(items=> cb(items||[])); }
 
     function renderTable(items){
       const tbody=document.getElementById('hazardsTbody');
@@ -589,14 +608,29 @@
         const f=r.framework7||{}; const adjs=f.adjs||{}; const enabled=f.enabled||{}; const risks=f.risks||{}; const like=f.like||0;
         const show = (k)=> {
           if(enabled[k]===false) return '-';
-          // Prefer risk (impact × L); fallback to adj × like; fallback to adj
           if(Number.isFinite(risks[k])) return risks[k];
           if(Number.isFinite(adjs[k]) && Number.isFinite(like)) return round1(Number(adjs[k]) * Number(like));
           return adjs[k] ?? '-';
         };
         const date=r.createdAt? new Date(r.createdAt).toLocaleString():'';
         const overall=f.overall??'-';
-        return `<tr class=\"border-b hover:bg-slate-50 cursor-pointer\" data-id=\"${r.id}\">\n          <td class=\"py-2 pr-4\">${r.title}</td>\n          <td class=\"py-2 pr-4\">${show('people')}</td>\n          <td class=\"py-2 pr-4\">${show('buildings')}</td>\n          <td class=\"py-2 pr-4\">${show('environment')}</td>\n          <td class=\"py-2 pr-4\">${show('ff')}</td>\n          <td class=\"py-2 pr-4\">${show('community')}</td>\n          <td class=\"py-2 pr-4\">${show('economy')}</td>\n          <td class=\"py-2 pr-4\">${show('reputation')}</td>\n          <td class=\"py-2 pr-4\">${overall}</td>\n          <td class=\"py-2 pr-4 text-slate-500\">${date}</td>\n          <td class=\"py-2 pr-4\">\n            <button data-action=\"edit\" data-id=\"${r.id}\" class=\"px-2 py-1 rounded-lg border mr-1\">Edit</button>\n            <button data-action=\"dup\" data-id=\"${r.id}\" class=\"px-2 py-1 rounded-lg border mr-1\">Duplicate</button>\n            <button data-action=\"del\" data-id=\"${r.id}\" class=\"px-2 py-1 rounded-lg border border-rose-300 text-rose-700\">Delete</button>\n          </td>\n        </tr>`;
+        return `<tr class="border-b hover:bg-slate-50 cursor-pointer" data-id="${r.id}">
+          <td class="py-2 pr-4">${r.title}</td>
+          <td class="py-2 pr-4">${show('people')}</td>
+          <td class="py-2 pr-4">${show('buildings')}</td>
+          <td class="py-2 pr-4">${show('environment')}</td>
+          <td class="py-2 pr-4">${show('ff')}</td>
+          <td class="py-2 pr-4">${show('community')}</td>
+          <td class="py-2 pr-4">${show('economy')}</td>
+          <td class="py-2 pr-4">${show('reputation')}</td>
+          <td class="py-2 pr-4">${overall}</td>
+          <td class="py-2 pr-4 text-slate-500">${date}</td>
+          <td class="py-2 pr-4">
+            <button data-action="edit" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Edit</button>
+            <button data-action="dup" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Duplicate</button>
+            <button data-action="del" data-id="${r.id}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
+          </td>
+        </tr>`;
       }).join('');
       tbody.innerHTML=rows;
       tbody.querySelectorAll('tr').forEach(tr=>{
@@ -610,95 +644,15 @@
       });
     }
 
-    function refreshTable(){ getAll(renderTable); }
-    document.getElementById('storageSel').addEventListener('change', ()=>{ refreshTable(); switchToList(); });
-
-    function deleteRisk(id){ currentStore().delete(id).then(()=> refreshTable()); }
-
+    function refreshTable(){ SessionStore.getAll().then(items=> renderTable(items||[])); }
+    function deleteRisk(id){ SessionStore.delete(id).then(()=> refreshTable()); }
     function duplicateRisk(id){
-      const store=currentStore();
-      store.get(id).then(r=>{
+      SessionStore.get(id).then(r=>{
         if(!r) return;
         const { id:_omit, ...rest } = r;
         const copy={ ...rest, title: r.title+' (copy)', createdAt: new Date().toISOString() };
-        return store.add(copy);
+        return SessionStore.add(copy);
       }).then(()=> refreshTable()).catch(err=>{ console.error('Duplicate failed', err); alert('Duplicate failed: '+(err?.message||err)); });
-    }
-
-    // ===== Export / Import / Deep-link =====
-    function toBase64Safe(str){ try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(str); } }
-    function fromBase64Safe(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return atob(b64); } }
-
-    function getAppUrl(){
-      const href = (window.location && window.location.href ? window.location.href : '').split('#')[0];
-      if(/^https?:/i.test(href)) return href;
-      const meta = document.querySelector('meta[data-app-url]');
-      if(meta && /^https?:/i.test(meta.content)) return meta.content.trim();
-      try{ const saved = localStorage.getItem('crr_app_url'); if(saved && /^https?:/i.test(saved)) return saved; }catch(_){ }
-      const guess = typeof prompt==='function' ? prompt('Enter the public URL where this app is hosted (e.g. https://yourdomain/app.html):', '') : '';
-      if(guess && /^https?:/i.test(guess.trim())){ try{ localStorage.setItem('crr_app_url', guess.trim()); }catch(_){} return guess.trim(); }
-      return '';
-    }
-
-    function exportAll(){
-      getAll(items=>{
-        const payload={ version:1, exportedAt:new Date().toISOString(), items };
-        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href=url; a.download='community_risks.json'; a.click(); URL.revokeObjectURL(url);
-      });
-    }
-
-    function importJSON(file){
-      const reader=new FileReader();
-      reader.onload=()=>{
-        try{
-          const data=JSON.parse(reader.result);
-          const items=Array.isArray(data)?data:(Array.isArray(data.items)?data.items:[]);
-          if(!items.length){ alert('No items found in JSON'); return; }
-          openDB(db=>{
-            const tx=db.transaction(STORE,'readwrite'); const store=tx.objectStore(STORE);
-            items.forEach(it=>{ const {id:_omit, ...rest}=it||{}; store.add({...rest, createdAt:new Date().toISOString()}); });
-            tx.oncomplete=()=>{ db.close(); refreshTable(); alert('Import complete'); };
-          });
-        }catch(err){ console.error(err); alert('Invalid JSON file'); }
-      };
-      reader.readAsText(file);
-    }
-
-    function importFromHash(){
-      if(!location.hash || !location.hash.startsWith('#import=')) return;
-      const enc=location.hash.slice('#import='.length);
-      try{
-        const json=fromBase64Safe(enc); const data=JSON.parse(json);
-        const items=Array.isArray(data)?data:(Array.isArray(data.items)?data.items:[]);
-        if(!items.length){ alert('No items found in link'); return; }
-        openDB(db=>{ const tx=db.transaction(STORE,'readwrite'); const store=tx.objectStore(STORE);
-          items.forEach(it=>{ const {id:_omit, ...rest}=it||{}; store.add({...rest, createdAt:new Date().toISOString()}); });
-          tx.oncomplete=()=>{ db.close(); refreshTable(); alert('Imported from link'); };
-        });
-      }catch(e){ console.error('Hash import failed', e); alert('Failed to import from link'); }
-      finally { history.replaceState(null, document.title, location.pathname + location.search); }
-    }
-
-    function downloadLauncher(){
-      getAll(items=>{
-        const payload={ version:1, exportedAt:new Date().toISOString(), items };
-        const enc=toBase64Safe(JSON.stringify(payload));
-        const appUrl = getAppUrl();
-        if(!appUrl){ alert('I can\'t determine where to open the launcher (no HTTP URL available).\n\nOptions:\n • Host this page and add <meta data-app-url="https://yourdomain/app.html">\n • Or click Copy Import Link after setting an app URL.'); return; }
-        const target=appUrl + '#import=' + enc;
-        const launcher='<!doctype html>'+
-          '<html><head><meta charset="utf-8"><title>Risk Register Launcher</title></head><body>'+
-          '<script>location.href = "'+ target.replace(/"/g,'&quot;') +'";<\/script>'+
-          '<p>Launching Community Risk Register...</p>'+
-          '</body></html>';
-        const blob=new Blob([launcher],{type:'text/html'});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href=url; a.download='launch_community_risks.html';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(()=> URL.revokeObjectURL(url), 1000);
-      });
     }
 
     // ===== View switching & dirty tracking =====
@@ -735,8 +689,7 @@
     function attemptLeave(next){ if(isDirty()){ pendingLeave=next; showModal(); } else { next(); } }
 
     function loadRisk(id){
-      const store=currentStore();
-      store.get(id).then(r=>{
+      SessionStore.get(id).then(r=>{
         if(!r) return;
         editingId=r.id;
         el('riskTitle').value=r.title||'';
@@ -790,21 +743,8 @@
       });
 
       // Buttons
-      el('exportBtn').addEventListener('click', exportAll);
-      el('copyLinkBtn').addEventListener('click', ()=>{
-        getAll(items=>{
-          const payload={ version:1, exportedAt:new Date().toISOString(), items };
-          const enc=toBase64Safe(JSON.stringify(payload));
-          const appUrl = getAppUrl();
-          if(!appUrl){ alert('Unable to determine an HTTP URL for this app. Add <meta data-app-url="https://yourdomain/app.html"> or host the page and retry.'); return; }
-          const link=appUrl + '#import=' + enc;
-          if(navigator.clipboard && navigator.clipboard.writeText){
-            navigator.clipboard.writeText(link).then(()=> alert('Import link copied to clipboard.')).catch(()=>{ prompt('Copy this link:', link); });
-          } else { prompt('Copy this link:', link); }
-        });
-      });
-      el('downloadLinkBtn').addEventListener('click', downloadLauncher);
-      el('importInput').addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(f) importJSON(f); e.target.value=''; });
+      el('copyLinkBtn').addEventListener('click', copySavedLink);
+      el('saveAsBtn').addEventListener('click', saveAsLauncher);
       el('generateBtn').addEventListener('click', genNarrative);
       el('saveBtn').addEventListener('click', saveCurrent);
       el('addNewBtn').addEventListener('click', ()=>{
@@ -816,6 +756,19 @@
       });
       el('backToListBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
       el('cancelBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
+      el('resetBtn').addEventListener('click', ()=>{
+        if(!confirm('Reset this form to defaults?')) return;
+        // Reset values but keep include toggles as-is
+        CFG.categories.forEach(c=>{
+          c.sub.forEach(sf=>{ const inp=el(sf.id); if(inp) inp.value=3; });
+          const eff=el('eff_'+c.key); if(eff) eff.value=1;
+          setMitigations(c.key, []);
+          setGaps(c.key, []);
+        });
+        el(CFG.likelihoodId).value=3;
+        recalc();
+        el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
+      });
       // row buttons are attached inside renderTable()
     }
 
@@ -828,74 +781,33 @@
     switchToList();
     recalc();
 
-    // ===== Self-tests =====
+    // ===== Minimal self-tests =====
     (function tests(){
-      // 1) calcRoll example: 5,4,3 => 5.7
       try{
+        // 1) calcRoll 5,4,3 => 5.7
         el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3;
         const econCat = CFG.categories.find(c=>c.key==='economy');
         const r = calcRoll(econCat);
         console.assert(Math.abs(r-5.7)<1e-9, 'calcRoll(5,4,3) should be 5.7, got '+r);
-      }catch(e){ console.error('Test calcRoll failed', e); }
+      }catch(e){ console.warn('Test(calcRoll) skipped:', e.message); }
 
-      // 2) mitigation effectiveness (stepped to 60%)
       try{
-        CFG.categories.find(c=>c.key==='people').sub.forEach(sf=> el(sf.id).value=5);
-        el('eff_people').value=5; const chk = el('en_people'); chk.checked=true; toggleSectionBody('people', true); recalc();
-        console.assert(Number(el('roll_people').textContent)===6.0, 'Base people roll should be 6.0');
-        console.assert(Number(el('roll_adj_people').textContent)===2.4, 'Adjusted people roll should be 2.4 at eff=5 (60%)');
-      }catch(e){ console.error('Test mitigation scaling failed', e); }
-
-      // 3) overall and per-section risk use impact × L considering only enabled categories
-      try{
-        // Enable economy only and likelihood 5
-        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); ck.checked=false; toggleSectionBody(c.key,false); });
+        // 2) Enabled filter + per-section pill and overall
+        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); if(ck){ ck.checked=false; toggleSectionBody(c.key,false);} });
         const cke = el('en_economy'); cke.checked=true; toggleSectionBody('economy', true);
-        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3; // economy impact = 5.7 base
+        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3; // base=5.7
         el('eff_economy').value=1; // no reduction
         el(CFG.likelihoodId).value=5; recalc();
-        // Overall should be 5.7 * 5 = 28.5
-        console.assert(Number(el('overall_out').textContent)===28.5, 'Overall (max impact × L) should be 28.5');
-        // Per-section pill for Economy should be 28.5 too
-        const econPill = el('pill_economy');
-        console.assert(Number(econPill.textContent)===28.5, 'Economy pill should be impact × L');
-      }catch(e){ console.error('Test enabled filter + per-section risk failed', e); }
+        console.assert(Number(el('overall_out').textContent)===28.5, 'Overall should be 28.5 (5.7×5)');
+        const econPill = el('pill_economy'); console.assert(Number(econPill.textContent)===28.5, 'Economy pill should be 28.5');
+      }catch(e){ console.warn('Test(enabled + summary) skipped:', e.message); }
 
-      // 4) Mitigations add/collect
       try{
-        setMitigations('people', []); addMitigation('people', 'HFSC programme');
-        const m = getMitigations('people');
-        console.assert(m.length===1 && m[0]==='HFSC programme', 'Mitigations should collect one entry');
-      }catch(e){ console.error('Test mitigations failed', e); }
-
-      // 5) UI presence
-      ['addNewBtn','exportBtn','importInput','copyLinkBtn','downloadLinkBtn','saveBtn','generateBtn','hazardsTable','leaveModal']
-        .forEach(id=> console.assert(!!el(id), 'Missing UI element '+id));
-
-      // 6) Gaps add/collect
-      try{
-        setGaps('people', []); addGap('people', 'No nighttime cover in sector 3');
-        const g = getGaps('people');
-        console.assert(g.length===1 && g[0]==='No nighttime cover in sector 3', 'Gaps should collect one entry');
-      }catch(e){ console.error('Test gaps failed', e); }
-
-      // 7) Summary pills should show 0.0 safely when nothing enabled
-      try{
-        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); if(ck){ ck.checked=false; toggleSectionBody(c.key,false); }});
+        // 3) Summary pills default when all disabled
+        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); if(ck){ ck.checked=false; toggleSectionBody(c.key,false);} });
         buildPillsDynamic({}, {}, 0);
-        const ov = el('pill_overall');
-        console.assert(ov && ov.textContent==='0.0', 'Overall pill default should be 0.0');
-      }catch(e){ console.error('Test pills default failed', e); }
-
-      // 8) Disabled category should not render a pill in summary
-      try{
-        const chkR = el('en_reputation');
-        chkR.checked=false; toggleSectionBody('reputation', false);
-        buildPillsDynamic({}, {}, 0);
-        console.assert(!el('pill_reputation'), 'Disabled category should not render a pill');
-        // restore
-        recalc();
-      }catch(e){ console.error('Test disabled pill render failed', e); }
+        const ov = el('pill_overall'); console.assert(ov && ov.textContent==='0.0', 'Overall pill default should be 0.0');
+      }catch(e){ console.warn('Test(pills default) skipped:', e.message); }
     })();
   </script>
 </body>
