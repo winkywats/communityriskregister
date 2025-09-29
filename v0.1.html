@@ -15,6 +15,7 @@
     .switch input:checked + .slider { background-color: #16a34a; }
     .switch input:checked + .slider:before { transform: translateX(20px); }
     #radarChart { width: 100%; height: 300px; display: block; }
+    details[open] summary .chev { transform: rotate(90deg); }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -22,55 +23,49 @@
 
     <header class="mb-6">
       <h1 class="text-3xl font-bold">Community Risk Register - Demo</h1>
-      <p class="text-slate-600 mb-3">Enter scores (1-5) across the seven NFCC-aligned dimensions. We'll roll them up and auto-generate a narrative.</p>
+      <p class="text-slate-600 mb-3">
+        Manage <strong>Hazards</strong> and their <strong>Hazardous Events</strong>. Enter scores (1–5) across the seven NFCC-aligned dimensions. We'll roll them up and auto-generate a narrative.
+      </p>
       <div class="flex flex-wrap items-center gap-3">
-        <button id="addNewBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add New Hazard</button>
+        <button id="addHazardBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium">Add Hazard</button>
+        <button id="addEventBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add Hazardous Event</button>
         <button id="copyLinkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-medium">Copy Saved Link</button>
         <button id="saveAsBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium">Save As…</button>
       </div>
     </header>
 
+    <!-- Hazards + Events List (Accordion) -->
     <section id="listView" class="mb-6">
       <div class="bg-white rounded-2xl shadow p-5">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xl font-semibold">Hazardous Events</h2>
-          <div class="text-sm text-slate-500">Click a row to edit</div>
+          <h2 class="text-xl font-semibold">Hazards</h2>
+          <div class="text-sm text-slate-500">Expand a hazard to view and edit its hazardous events</div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="table min-w-full text-sm" id="hazardsTable">
-            <thead>
-              <tr class="text-left">
-                <th class="py-2 pr-4">Title</th>
-                <th class="py-2 pr-4">People</th>
-                <th class="py-2 pr-4">Buildings/Infra</th>
-                <th class="py-2 pr-4">Environment</th>
-                <th class="py-2 pr-4">FF Safety</th>
-                <th class="py-2 pr-4">Community/Society</th>
-                <th class="py-2 pr-4">Economy</th>
-                <th class="py-2 pr-4">Reputation</th>
-                <th class="py-2 pr-4">Overall</th>
-                <th class="py-2 pr-4">Saved</th>
-                <th class="py-2 pr-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="hazardsTbody">
-              <tr><td colspan="11" class="py-3 text-slate-500">No records yet. Click <strong>Add New Hazard</strong> to create one.</td></tr>
-            </tbody>
-          </table>
+
+        <div id="hazardsAccordion" class="space-y-3">
+          <!-- dynamically rendered -->
         </div>
       </div>
     </section>
 
-    <!-- Editor view with 7 categories -->
+    <!-- Editor view (single Hazardous Event) -->
     <div id="editorView" class="grid lg:grid-cols-3 gap-6 hidden">
       <section class="lg:col-span-2">
         <div class="bg-white rounded-2xl shadow p-5 space-y-6">
-          <div class="flex items-center gap-3">
-            <label for="riskTitle" class="font-semibold">Risk Title</label>
-            <input id="riskTitle" type="text" placeholder="e.g., Dwelling Fire, RTC, Flooding" class="flex-1 px-3 py-2 rounded-xl border" />
-            <button id="cancelBtn" class="px-3 py-2 rounded-xl border">Cancel</button>
-            <button id="backToListBtn" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Back to List</button>
-            <button id="resetBtn" class="px-3 py-2 rounded-xl border">Reset</button>
+          <!-- Title + Hazard selection -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-3">
+              <label for="riskTitle" class="font-semibold w-40">Event Title</label>
+              <input id="riskTitle" type="text" placeholder="e.g., Dwelling Fire, RTC, Flooding"
+                     class="flex-1 px-3 py-2 rounded-xl border" />
+            </div>
+            <div class="flex items-center gap-3">
+              <label for="hazardSel" class="font-semibold w-40">Associated Hazard</label>
+              <select id="hazardSel" class="px-3 py-2 rounded-xl border min-w-[16rem]"></select>
+              <button id="cancelBtn" class="ml-auto px-3 py-2 rounded-xl border">Cancel</button>
+              <button id="backToListBtn" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Back to List</button>
+              <button id="resetBtn" class="px-3 py-2 rounded-xl border">Reset</button>
+            </div>
           </div>
 
           <!-- categories: one per row -->
@@ -78,7 +73,7 @@
 
           <div class="flex items-center gap-3">
             <button id="generateBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Generate Narrative</button>
-            <button id="saveBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Save Risk</button>
+            <button id="saveBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Save Event</button>
           </div>
         </div>
       </section>
@@ -157,17 +152,42 @@
       mitigationSteps: { 1:0.00, 2:0.10, 3:0.25, 4:0.40, 5:0.60 }
     };
 
-    // ===== Stateless in-memory store =====
-    let editingId = null;
+    // ===== Stateless in-memory store (hazards + items) =====
+    let editingId = null;           // current item (hazardous event) being edited
+    let editingHazardId = null;     // remembered hazard for starting new events
+
     const SessionStore = {
-      _items: [],
-      _nextId: 1,
-      add(rec){ const id=this._nextId++; const copy={...rec, id}; this._items.unshift(copy); return Promise.resolve({id}); },
+      _items: [],      // hazardous events
+      _hazards: [],    // hazards
+      _nextItemId: 1,
+      _nextHazId: 1,
+
+      // Events
+      add(rec){ const id=this._nextItemId++; const copy={...rec, id}; this._items.unshift(copy); return Promise.resolve({id}); },
       put(rec){ if(!rec.id) return this.add(rec); const i=this._items.findIndex(x=>x.id===rec.id); if(i>-1) this._items[i]=JSON.parse(JSON.stringify(rec)); else this._items.unshift(JSON.parse(JSON.stringify(rec))); return Promise.resolve({id:rec.id}); },
       getAll(){ return Promise.resolve(this._items.map(x=>JSON.parse(JSON.stringify(x)))); },
       get(id){ const it=this._items.find(x=>x.id===id); return Promise.resolve(it? JSON.parse(JSON.stringify(it)) : null ); },
       delete(id){ this._items = this._items.filter(x=>x.id!==id); return Promise.resolve(); },
-      setAll(arr){ this._items = []; this._nextId = 1; (arr||[]).forEach(x=>{ this._items.push({...x, id:this._nextId++}); }); }
+
+      // Hazards
+      addHazard(title){ const id=this._nextHazId++; this._hazards.push({ id, title: String(title||'Untitled Hazard').trim() }); return Promise.resolve({id}); },
+      putHazard(haz){ const i=this._hazards.findIndex(h=>h.id===haz.id); if(i>-1) this._hazards[i] = { id: haz.id, title: String(haz.title||'Untitled Hazard').trim() }; return Promise.resolve({id: haz.id}); },
+      getAllHazards(){ return Promise.resolve(this._hazards.map(h=> ({ id:h.id, title:h.title }) )); },
+      deleteHazard(id){ // reassign events to uncategorised (null)
+        this._hazards = this._hazards.filter(h=>h.id!==id);
+        this._items = this._items.map(ev => (ev.hazardId===id ? { ...ev, hazardId: null } : ev));
+        return Promise.resolve();
+      },
+
+      // Import/Reset
+      setAll(payload){
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        const hazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
+        this._items = []; this._hazards = [];
+        this._nextItemId = 1; this._nextHazId = 1;
+        hazards.forEach(h => { this._hazards.push({ id: this._nextHazId++, title: String(h.title||'Untitled Hazard') }); });
+        items.forEach(it => { this._items.push({ ...it, id: this._nextItemId++ }); });
+      }
     };
 
     // ===== Helpers =====
@@ -181,7 +201,7 @@
       return ((e-1)/4) * 0.4;
     }
 
-    // ===== Build UI blocks =====
+    // ===== Build Category UI blocks =====
     const catRoot = el('categories');
     function buildCategoryBlocks(){
       const frag = document.createDocumentFragment();
@@ -271,7 +291,7 @@
       CFG.categories.forEach(c=> toggleSectionBody(c.key, enabledOf(c.key)) );
     }
 
-    // Summary pills (rebuilt on each recalc to obey enabled state)
+    // Summary pills
     const pillsRoot = el('summaryPills');
     function buildPillsDynamic(rollsAdj, perCatRisk, overall){
       const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
@@ -313,7 +333,7 @@
     }
 
     function recalc(){
-      const rollsAdj = {}; // adjusted impact (after mitigation)
+      const rollsAdj = {};
       CFG.categories.forEach(cat=>{
         const { base, adj } = calcAdjusted(cat);
         el('roll_'+cat.key).textContent = base.toFixed(1);
@@ -321,7 +341,6 @@
         if(enabledOf(cat.key)) rollsAdj[cat.key] = adj;
       });
       const like = clamp15(el(CFG.likelihoodId).value);
-      // Per-section risk = impact (current adj) × likelihood
       const perCatRisk = {};
       Object.keys(rollsAdj).forEach(k=>{ perCatRisk[k] = round1(rollsAdj[k] * like); });
       const vals = Object.values(rollsAdj);
@@ -329,7 +348,7 @@
       const overall = round1(maxAdj * like);
       el('overall_out').textContent = overall.toFixed(1);
       buildPillsDynamic(rollsAdj, perCatRisk, overall);
-      drawRadar(rollsAdj); // radar shows impacts (not multiplied)
+      drawRadar(rollsAdj);
     }
 
     // ===== Mitigations helpers =====
@@ -390,12 +409,11 @@
       recalc();
     }
 
-    // ===== Lightweight radar (no external libs) =====
+    // ===== Lightweight radar
     function drawRadar(rolls){
       const canvas = document.getElementById('radarChart');
       const ctx = canvas.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
-      // Keep layout stable: CSS size stays fixed, only the drawing buffer scales
       if (!canvas.style.width) canvas.style.width = '100%';
       if (!canvas.style.height) canvas.style.height = '300px';
       const rect = canvas.getBoundingClientRect();
@@ -415,9 +433,8 @@
       const steps = max;
 
       ctx.lineWidth = 1;
-      ctx.strokeStyle = '#cbd5e1'; // slate-300
+      ctx.strokeStyle = '#cbd5e1';
 
-      // grid rings
       for(let s=1; s<=steps; s++){
         const r = radius * (s/max);
         ctx.beginPath();
@@ -427,12 +444,10 @@
           const y = cy + r * Math.sin(ang);
           if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
         }
-        ctx.closePath();
-        ctx.stroke();
+        ctx.closePath(); ctx.stroke();
       }
 
-      // axes
-      ctx.strokeStyle = '#e2e8f0'; // slate-200
+      ctx.strokeStyle = '#e2e8f0';
       for(let i=0;i<labels.length;i++){
         const ang = (Math.PI*2 * i/labels.length) - Math.PI/2;
         const x = cx + radius * Math.cos(ang);
@@ -440,7 +455,6 @@
         ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x,y); ctx.stroke();
       }
 
-      // labels
       ctx.fillStyle = '#475569';
       ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -451,31 +465,25 @@
         ctx.fillText(labels[i], lx, ly);
       }
 
-      // data polygon
-      if(labels.length){
-        const points = values.map((v,i)=>{
-          const ang = (Math.PI*2 * i/labels.length) - Math.PI/2;
-          const r = radius * (v/max);
-          return [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
-        });
-        ctx.beginPath();
-        points.forEach(([x,y],i)=>{ if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(99,102,241,0.15)'; // indigo-500 alpha
-        ctx.strokeStyle = 'rgba(99,102,241,0.9)';
-        ctx.lineWidth = 2;
-        ctx.fill();
-        ctx.stroke();
-
-        // data points
-        ctx.fillStyle = 'rgba(99,102,241,0.9)';
-        points.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill(); });
-      }
+      const points = values.map((v,i)=>{
+        const ang = (Math.PI*2 * i/labels.length) - Math.PI/2;
+        const r = radius * (v/max);
+        return [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
+      });
+      ctx.beginPath();
+      points.forEach(([x,y],i)=>{ if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(99,102,241,0.15)';
+      ctx.strokeStyle = 'rgba(99,102,241,0.9)';
+      ctx.lineWidth = 2;
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(99,102,241,0.9)';
+      points.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill(); });
     }
 
     // ===== Narrative =====
     function genNarrative(){
-      const title = (el('riskTitle').value||'This risk').trim();
+      const title = (el('riskTitle').value||'This hazardous event').trim();
       const like = clamp15(el(CFG.likelihoodId).value);
       const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
       const adjs = {}; enabledCats.forEach(cat=>{ adjs[cat.key]=calcAdjusted(cat).adj; });
@@ -496,7 +504,7 @@
       el('narrative').textContent = parts.join(' ');
     }
 
-    // ===== Deep-link import (session only) =====
+    // ===== Import/Export (deep-link) =====
     function toBase64Safe(str){ try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(str); } }
     function fromBase64Safe(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return atob(b64); } }
     function getAppUrl(){
@@ -512,9 +520,12 @@
       try{
         const json = fromBase64Safe(enc);
         const data = JSON.parse(json);
-        const items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
-        SessionStore.setAll(items);
-        refreshTable();
+        const payload = {
+          hazards: Array.isArray(data?.hazards) ? data.hazards : [],
+          items: Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : [])
+        };
+        SessionStore.setAll(payload);
+        refreshHazardsAccordion();
         alert('Imported from link');
       }catch(e){
         console.error('Hash import failed', e);
@@ -524,10 +535,9 @@
       }
     }
 
-    // ===== Link creation (Copy / Save As) =====
     function copySavedLink(){
-      SessionStore.getAll().then(items=>{
-        const payload={ version:1, exportedAt:new Date().toISOString(), items };
+      Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]).then(([items, hazards])=>{
+        const payload={ version:1, exportedAt:new Date().toISOString(), items, hazards };
         const enc=toBase64Safe(JSON.stringify(payload));
         const appUrl = getAppUrl() || window.location.href.split('#')[0];
         const link=appUrl + '#import=' + enc;
@@ -539,8 +549,8 @@
 
     async function saveAsLauncher(){
       try{
-        const items = await SessionStore.getAll();
-        const payload={ version:1, exportedAt:new Date().toISOString(), items };
+        const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
+        const payload={ version:1, exportedAt:new Date().toISOString(), items, hazards };
         const enc = toBase64Safe(JSON.stringify(payload));
         const appUrl = getAppUrl() || window.location.href.split('#')[0];
         const target = appUrl + '#import=' + enc;
@@ -558,7 +568,7 @@
           const writable = await handle.createWritable();
           await writable.write(new Blob([launcher], { type: 'text/html' }));
           await writable.close();
-          alert('Launcher saved. Open it later to load these records.');
+          alert('Launcher saved. Open it later to load these hazards and events.');
           return;
         }
 
@@ -573,7 +583,7 @@
       }
     }
 
-    // ===== Collect + Save + Table =====
+    // ===== Editor collect/save =====
     function collectCurrent(){
       const inputs={}; CFG.categories.forEach(c=> c.sub.forEach(sf=> inputs[sf.id]=el(sf.id).value ));
       inputs[CFG.likelihoodId]=el(CFG.likelihoodId).value;
@@ -587,7 +597,8 @@
       const gaps={}; CFG.categories.forEach(c=> gaps[c.key]=getGaps(c.key));
       return {
         ...(editingId!=null?{id:editingId}:{ }),
-        title:(el('riskTitle').value||'Untitled Risk').trim(),
+        hazardId: parseInt(el('hazardSel').value, 10) || null,
+        title:(el('riskTitle').value||'Untitled Hazardous Event').trim(),
         framework7:{ inputs, rolls, adjs, risks, effs, like, overall, mitigations, gaps, enabled, mitigationSteps: CFG.mitigationSteps },
         narrative: el('narrative').textContent,
         createdAt: new Date().toISOString()
@@ -597,14 +608,103 @@
     function saveCurrent(){
       const rec=collectCurrent();
       const op = (editingId!=null) ? SessionStore.put(rec) : SessionStore.add(rec);
-      op.then(({id})=>{ editingId = id || editingId; refreshTable(); switchToList(); })
+      op.then(({id})=>{ editingId = id || editingId; refreshHazardsAccordion(); switchToList(); })
         .catch(err=>{ console.error('Save failed', err); alert('Save failed: '+(err?.message||err)); });
     }
 
-    function renderTable(items){
-      const tbody=document.getElementById('hazardsTbody');
-      if(!items.length){ tbody.innerHTML='<tr><td colspan="11" class="py-3 text-slate-500">No records yet. Click <strong>Add New Hazard</strong> to create one.</td></tr>'; return; }
-      const rows=items.sort((a,b)=> (a.createdAt>b.createdAt?-1:1)).map(r=>{
+    function loadEvent(id){
+      SessionStore.get(id).then(r=>{
+        if(!r) return;
+        editingId=r.id;
+        populateHazardSelect(r.hazardId ?? null);
+        el('riskTitle').value=r.title||'';
+        const f=r.framework7||{}; const inputs=f.inputs||{}; const enabled=f.enabled||{};
+        CFG.categories.forEach(c=> c.sub.forEach(sf=>{ if(el(sf.id)) el(sf.id).value = inputs[sf.id] ?? 3; }));
+        if(el(CFG.likelihoodId)) el(CFG.likelihoodId).value = inputs[CFG.likelihoodId] ?? 3;
+        const effs=f.effs||{}; CFG.categories.forEach(c=>{ if(el('eff_'+c.key)) el('eff_'+c.key).value = effs[c.key] ?? 1; });
+        const mits=(f.mitigations)||{}; CFG.categories.forEach(c=> setMitigations(c.key, mits[c.key]||[]));
+        const gaps=(f.gaps)||{}; CFG.categories.forEach(c=> setGaps(c.key, gaps[c.key]||[]));
+        CFG.categories.forEach(c=>{ const chk = el('en_'+c.key); if(chk){ chk.checked = enabled[c.key]===true; toggleSectionBody(c.key, chk.checked); } });
+        recalc();
+        el('narrative').textContent = r.narrative || el('narrative').textContent;
+        switchToEditor();
+      });
+    }
+
+    // ===== Hazard UI =====
+    function renderHazardsAccordion(hazards, items){
+      const root = el('hazardsAccordion');
+      if(!hazards.length && !items.length){
+        root.innerHTML = `<div class="text-slate-500">No Hazards or Hazardous Events yet. Use <strong>Add Hazard</strong> or <strong>Add Hazardous Event</strong> to begin.</div>`;
+        return;
+      }
+
+      // Build map hazardId => items[]
+      const byHaz = new Map();
+      hazards.forEach(h=> byHaz.set(h.id, []));
+      const uncategorised = [];
+      items.forEach(ev=>{
+        if(ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev);
+        else uncategorised.push(ev);
+      });
+
+      const blocks = [];
+
+      // Render hazards
+      hazards.forEach(h=>{
+        blocks.push(hazardBlock(h, byHaz.get(h.id) || []));
+      });
+
+      // Render Uncategorised if any
+      if(uncategorised.length){
+        blocks.push(hazardBlock({ id:null, title:'Uncategorised' }, uncategorised, true));
+      }
+
+      root.innerHTML = blocks.join('');
+      // Wire row clicks and hazard action buttons
+      root.querySelectorAll('table[data-hazard] tbody tr').forEach(tr=>{
+        tr.addEventListener('click',(e)=>{
+          const id=Number(tr.dataset.id);
+          const act=e.target?.dataset?.action;
+          if(act==='del'){ e.stopPropagation(); SessionStore.delete(id).then(()=> refreshHazardsAccordion()); return; }
+          if(act==='dup'){ e.stopPropagation(); duplicateEvent(id); return; }
+          loadEvent(id);
+        });
+      });
+      root.querySelectorAll('[data-action="haz-rename"]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
+          if(hid===null){ alert('Cannot rename the Uncategorised group.'); return; }
+          SessionStore.getAllHazards().then(hzs=>{
+            const hz = hzs.find(z=> z.id===hid);
+            if(!hz) return;
+            const t = prompt('Rename hazard:', hz.title);
+            if(t && t.trim()){ SessionStore.putHazard({ id:hid, title:t.trim() }).then(()=> refreshHazardsAccordion()); }
+          });
+        });
+      });
+      root.querySelectorAll('[data-action="haz-delete"]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
+          if(hid===null){ alert('Uncategorised cannot be deleted.'); return; }
+          if(!confirm('Delete this hazard? All associated events will be moved to Uncategorised.')) return;
+          SessionStore.deleteHazard(hid).then(()=> refreshHazardsAccordion());
+        });
+      });
+    }
+
+    function hazardBlock(h, rows, isUncat=false){
+      const count = rows.length;
+      const subtitle = isUncat ? 'Events without a hazard' : `${count} event${count===1?'':'s'}`;
+      const hazIdAttr = (h.id===null ? 'null' : String(h.id));
+      const headerActions = isUncat
+        ? ''
+        : `<div class="flex gap-2">
+             <button data-action="haz-rename" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border">Rename</button>
+             <button data-action="haz-delete" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
+           </div>`;
+
+      const tableRows = (rows||[]).sort((a,b)=> (a.createdAt>b.createdAt?-1:1)).map(r=>{
         const f=r.framework7||{}; const adjs=f.adjs||{}; const enabled=f.enabled||{}; const risks=f.risks||{}; const like=f.like||0;
         const show = (k)=> {
           if(enabled[k]===false) return '-';
@@ -632,32 +732,75 @@
           </td>
         </tr>`;
       }).join('');
-      tbody.innerHTML=rows;
-      tbody.querySelectorAll('tr').forEach(tr=>{
-        tr.addEventListener('click',(e)=>{
-          const id=Number(tr.dataset.id);
-          const act=e.target?.dataset?.action;
-          if(act==='del'){ e.stopPropagation(); deleteRisk(id); return; }
-          if(act==='dup'){ e.stopPropagation(); duplicateRisk(id); return; }
-          loadRisk(id);
-        });
+
+      return `
+      <details class="rounded-xl border">
+        <summary class="cursor-pointer select-none flex items-center justify-between p-4">
+          <div class="flex items-center gap-3">
+            <svg class="chev transition-transform" width="16" height="16" viewBox="0 0 20 20"><path fill="currentColor" d="M7 5l6 5-6 5V5z"/></svg>
+            <div>
+              <div class="font-semibold">${h.title || 'Untitled Hazard'}</div>
+              <div class="text-sm text-slate-500">${subtitle}</div>
+            </div>
+          </div>
+          ${headerActions}
+        </summary>
+        <div class="p-4 pt-0">
+          <div class="overflow-x-auto mt-3">
+            <table class="min-w-full text-sm" data-hazard="${hazIdAttr}">
+              <thead>
+                <tr class="text-left">
+                  <th class="py-2 pr-4">Event Title</th>
+                  <th class="py-2 pr-4">People</th>
+                  <th class="py-2 pr-4">Buildings/Infra</th>
+                  <th class="py-2 pr-4">Environment</th>
+                  <th class="py-2 pr-4">FF Safety</th>
+                  <th class="py-2 pr-4">Community/Society</th>
+                  <th class="py-2 pr-4">Economy</th>
+                  <th class="py-2 pr-4">Reputation</th>
+                  <th class="py-2 pr-4">Overall</th>
+                  <th class="py-2 pr-4">Saved</th>
+                  <th class="py-2 pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>${tableRows || ''}</tbody>
+            </table>
+          </div>
+        </div>
+      </details>`;
+    }
+
+    function refreshHazardsAccordion(){
+      Promise.all([SessionStore.getAllHazards(), SessionStore.getAll()]).then(([hazards, items])=>{
+        renderHazardsAccordion(hazards, items);
       });
     }
 
-    function refreshTable(){ SessionStore.getAll().then(items=> renderTable(items||[])); }
-    function deleteRisk(id){ SessionStore.delete(id).then(()=> refreshTable()); }
-    function duplicateRisk(id){
+    function duplicateEvent(id){
       SessionStore.get(id).then(r=>{
         if(!r) return;
-        const { id:_omit, ...rest } = r;
+        const { id:_omit, createdAt:__omit, ...rest } = r;
         const copy={ ...rest, title: r.title+' (copy)', createdAt: new Date().toISOString() };
         return SessionStore.add(copy);
-      }).then(()=> refreshTable()).catch(err=>{ console.error('Duplicate failed', err); alert('Duplicate failed: '+(err?.message||err)); });
+      }).then(()=> refreshHazardsAccordion()).catch(err=>{ console.error('Duplicate failed', err); alert('Duplicate failed: '+(err?.message||err)); });
+    }
+
+    // ===== Hazard select in editor =====
+    function populateHazardSelect(selectedId){
+      SessionStore.getAllHazards().then(hazards=>{
+        const sel = el('hazardSel');
+        const options = [
+          `<option value="">(Uncategorised)</option>`,
+          ...hazards.map(h=> `<option value="${h.id}">${h.title}</option>`)
+        ].join('');
+        sel.innerHTML = options;
+        sel.value = (selectedId==null ? '' : String(selectedId));
+      });
     }
 
     // ===== View switching & dirty tracking =====
     function getFormState(){
-      const s={ title: (el('riskTitle').value||'').trim() };
+      const s={ title: (el('riskTitle').value||'').trim(), hazardSel: el('hazardSel').value||'' };
       CFG.categories.forEach(c=> c.sub.forEach(sf=> s[sf.id]=el(sf.id).value ));
       s[CFG.likelihoodId]=el(CFG.likelihoodId).value;
       CFG.categories.forEach(c=> s['mit_'+c.key] = getMitigations(c.key).join('|') );
@@ -688,25 +831,7 @@
     }
     function attemptLeave(next){ if(isDirty()){ pendingLeave=next; showModal(); } else { next(); } }
 
-    function loadRisk(id){
-      SessionStore.get(id).then(r=>{
-        if(!r) return;
-        editingId=r.id;
-        el('riskTitle').value=r.title||'';
-        const f=r.framework7||{}; const inputs=f.inputs||{}; const enabled=f.enabled||{};
-        CFG.categories.forEach(c=> c.sub.forEach(sf=>{ if(el(sf.id)) el(sf.id).value = inputs[sf.id] ?? 3; }));
-        if(el(CFG.likelihoodId)) el(CFG.likelihoodId).value = inputs[CFG.likelihoodId] ?? 3;
-        const effs=f.effs||{}; CFG.categories.forEach(c=>{ if(el('eff_'+c.key)) el('eff_'+c.key).value = effs[c.key] ?? 1; });
-        const mits=(f.mitigations)||{}; CFG.categories.forEach(c=> setMitigations(c.key, mits[c.key]||[]));
-        const gaps=(f.gaps)||{}; CFG.categories.forEach(c=> setGaps(c.key, gaps[c.key]||[]));
-        CFG.categories.forEach(c=>{ const chk = el('en_'+c.key); if(chk){ chk.checked = enabled[c.key]===true; toggleSectionBody(c.key, chk.checked); } });
-        recalc();
-        el('narrative').textContent = r.narrative || el('narrative').textContent;
-        switchToEditor();
-      });
-    }
-
-    // ===== Wire up =====
+    // ===== Toggle include section bodies =====
     function toggleSectionBody(key, on){
       const body = el('sec_'+key+'_body');
       if(!body) return;
@@ -714,8 +839,9 @@
       else { body.classList.add('hidden'); }
     }
 
+    // ===== Wire-up =====
     function wire(){
-      // Inputs
+      // Category inputs
       CFG.categories.forEach(c=> c.sub.forEach(sf=> el(sf.id).addEventListener('input', recalc)));
       el(CFG.likelihoodId).addEventListener('input', recalc);
       CFG.categories.forEach(c=> el('eff_'+c.key).addEventListener('input', recalc));
@@ -728,37 +854,47 @@
         }
       });
 
-      // Mitigations & Gaps add / Enter
+      // Mitigations & Gaps add/enter
       CFG.categories.forEach(c=>{
-        // Mitigations
         const mitAddBtn = el(`mit_${c.key}_add`);
         const mitInp = el(`mit_${c.key}_input`);
         if(mitAddBtn) mitAddBtn.addEventListener('click', ()=> addMitigation(c.key));
         if(mitInp) mitInp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addMitigation(c.key); }});
-        // Gaps
         const gapAddBtn = el(`gap_${c.key}_add`);
         const gapInp = el(`gap_${c.key}_input`);
         if(gapAddBtn) gapAddBtn.addEventListener('click', ()=> addGap(c.key));
         if(gapInp) gapInp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addGap(c.key); }});
       });
 
-      // Buttons
+      // Global buttons
       el('copyLinkBtn').addEventListener('click', copySavedLink);
       el('saveAsBtn').addEventListener('click', saveAsLauncher);
       el('generateBtn').addEventListener('click', genNarrative);
       el('saveBtn').addEventListener('click', saveCurrent);
-      el('addNewBtn').addEventListener('click', ()=>{
-        editingId=null; el('riskTitle').value='';
+
+      // Add Event
+      el('addEventBtn').addEventListener('click', ()=>{
+        editingId=null;
+        populateHazardSelect(editingHazardId ?? null);
+        el('riskTitle').value='';
         CFG.categories.forEach(c=>{ c.sub.forEach(sf=> el(sf.id).value=3 ); if(el('eff_'+c.key)) el('eff_'+c.key).value=1; setMitigations(c.key, []); setGaps(c.key, []); const chk=el('en_'+c.key); if(chk){ chk.checked=false; toggleSectionBody(c.key, false);} });
         el(CFG.likelihoodId).value=3; recalc();
         el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
         switchToEditor();
       });
+
+      // Add Hazard
+      el('addHazardBtn').addEventListener('click', ()=>{
+        const t = prompt('New hazard title:','');
+        if(!t || !t.trim()) return;
+        SessionStore.addHazard(t.trim()).then(()=> refreshHazardsAccordion());
+      });
+
+      // Back/Cancel/Reset
       el('backToListBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
       el('cancelBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
       el('resetBtn').addEventListener('click', ()=>{
         if(!confirm('Reset this form to defaults?')) return;
-        // Reset values but keep include toggles as-is
         CFG.categories.forEach(c=>{
           c.sub.forEach(sf=>{ const inp=el(sf.id); if(inp) inp.value=3; });
           const eff=el('eff_'+c.key); if(eff) eff.value=1;
@@ -769,45 +905,47 @@
         recalc();
         el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
       });
-      // row buttons are attached inside renderTable()
     }
 
     // ===== Boot =====
-    buildCategoryBlocks();
-    buildPillsDynamic({}, {}, 0);
-    wire();
-    importFromHash();
-    refreshTable();
-    switchToList();
-    recalc();
+    (function init(){
+      buildCategoryBlocks();
+      buildPillsDynamic({}, {}, 0);
+      wire();
+      importFromHash();
+      refreshHazardsAccordion();
+      switchToList();
+      recalc();
+    })();
 
     // ===== Minimal self-tests =====
     (function tests(){
       try{
-        // 1) calcRoll 5,4,3 => 5.7
+        // calcRoll 5,4,3 => 5.7
         el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3;
         const econCat = CFG.categories.find(c=>c.key==='economy');
         const r = calcRoll(econCat);
         console.assert(Math.abs(r-5.7)<1e-9, 'calcRoll(5,4,3) should be 5.7, got '+r);
       }catch(e){ console.warn('Test(calcRoll) skipped:', e.message); }
-
       try{
-        // 2) Enabled filter + per-section pill and overall
+        // Enable economy only and likelihood 5 => overall 28.5
         CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); if(ck){ ck.checked=false; toggleSectionBody(c.key,false);} });
         const cke = el('en_economy'); cke.checked=true; toggleSectionBody('economy', true);
-        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3; // base=5.7
-        el('eff_economy').value=1; // no reduction
+        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3;
+        el('eff_economy').value=1;
         el(CFG.likelihoodId).value=5; recalc();
-        console.assert(Number(el('overall_out').textContent)===28.5, 'Overall should be 28.5 (5.7×5)');
-        const econPill = el('pill_economy'); console.assert(Number(econPill.textContent)===28.5, 'Economy pill should be 28.5');
-      }catch(e){ console.warn('Test(enabled + summary) skipped:', e.message); }
-
+        console.assert(Number(el('overall_out').textContent)===28.5, 'Overall should be 28.5');
+      }catch(e){ console.warn('Test(overall) skipped:', e.message); }
       try{
-        // 3) Summary pills default when all disabled
-        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); if(ck){ ck.checked=false; toggleSectionBody(c.key,false);} });
-        buildPillsDynamic({}, {}, 0);
-        const ov = el('pill_overall'); console.assert(ov && ov.textContent==='0.0', 'Overall pill default should be 0.0');
-      }catch(e){ console.warn('Test(pills default) skipped:', e.message); }
+        // Hazards create + delete cascade to uncategorised (reassign)
+        SessionStore.setAll({ hazards:[], items:[] });
+        SessionStore.addHazard('Flooding').then(({id})=>{
+          return SessionStore.add({ title:'River flood', hazardId:id, framework7:{}, createdAt:new Date().toISOString() })
+            .then(()=> SessionStore.deleteHazard(id))
+            .then(()=> SessionStore.getAll())
+            .then(items=> console.assert(items[0].hazardId===null, 'Event should be uncategorised after hazard delete'));
+        });
+      }catch(e){ console.warn('Test(hazard reassign) skipped:', e.message); }
     })();
   </script>
 </body>
