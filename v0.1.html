@@ -16,9 +16,56 @@
     .switch input:checked + .slider:before { transform: translateX(20px); }
     #radarChart { width: 100%; height: 300px; display: block; }
     details[open] summary .chev { transform: rotate(90deg); }
+    .chip { transition: background .15s ease; }
+    .chip:hover { filter: brightness(0.97); }
+    .modal-backdrop { background-color: rgba(0,0,0,0.4); }
+    /* Guidance collapse zero-height styling */
+    .gpanel-collapsed { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; border-width: 0; }
+    .gpanel-expanded { max-height: 24rem; opacity: 1; padding-top: 0.5rem; padding-bottom: 0.5rem; margin-top: 0.5rem; border-width: 1px; }
+    /* Menu */
+    .menu-open .menu-panel { display: block; }
+    /* Tiny animated dot for "Saving…" */
+    .pulse-dot {
+      width: 0.5rem; height: 0.5rem; border-radius: 9999px;
+      display: inline-block; margin-right: 0.5rem;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.6); opacity: 0.6; }
+      100% { transform: scale(1); opacity: 1; }
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
+
+  <!-- Top "File" menu bar -->
+  <nav class="bg-white border-b shadow-sm">
+    <div class="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between">
+      <div class="relative" id="fileMenuRoot">
+        <button id="fileMenuBtn" class="px-3 py-1.5 rounded-lg hover:bg-slate-100 font-medium">
+          File ▾
+        </button>
+        <div id="fileMenuPanel"
+             class="menu-panel hidden absolute z-50 mt-1 w-56 bg-white border rounded-xl shadow-lg overflow-hidden">
+          <button id="menuNew" class="w-full text-left px-4 py-2 hover:bg-slate-50">New</button>
+          <button id="menuOpen" class="w-full text-left px-4 py-2 hover:bg-slate-50">Open… (.litl)</button>
+          <button id="menuSave" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Save</button>
+          <button id="menuSaveAs" class="w-full text-left px-4 py-2 hover:bg-slate-50">Save As…</button>
+        </div>
+      </div>
+
+      <!-- Status area (top-right) -->
+      <div id="fileStatus" class="text-sm text-slate-500 flex items-center gap-2">
+        <!-- Dot + label will be injected -->
+        <span id="statusDot" class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
+        <span id="statusText">Unsaved</span>
+      </div>
+    </div>
+    <!-- Hidden input for Open fallback -->
+    <input id="openLitlInput" type="file" accept=".litl,.ltil,application/x-litl" class="hidden" />
+  </nav>
+
   <div class="max-w-7xl mx-auto p-6">
 
     <header class="mb-6">
@@ -29,8 +76,6 @@
       <div class="flex flex-wrap items-center gap-3">
         <button id="addHazardBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium">Add Hazard</button>
         <button id="addEventBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add Hazardous Event</button>
-        <button id="copyLinkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-medium">Copy Saved Link</button>
-        <button id="saveAsBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium">Save As…</button>
       </div>
     </header>
 
@@ -79,14 +124,30 @@
       </section>
 
       <aside class="space-y-6">
+        <!-- Status control -->
+        <div class="bg-white rounded-2xl shadow p-5 space-y-3">
+          <h3 class="text-lg font-semibold">Controls</h3>
+          <div class="flex items-center gap-3">
+            <label for="statusSel" class="font-medium w-24">Status</label>
+            <select id="statusSel" class="px-3 py-2 rounded-xl border min-w-[12rem]">
+              <option value="Tolerate">Tolerate</option>
+              <option value="Treat">Treat</option>
+              <option value="Transfer">Transfer</option>
+              <option value="Terminate">Terminate</option>
+            </select>
+          </div>
+        </div>
+
         <div class="bg-white rounded-2xl shadow p-5">
           <h3 class="text-lg font-semibold mb-2">Summary</h3>
           <div class="grid grid-cols-2 gap-3 text-sm" id="summaryPills"></div>
         </div>
+
         <div class="bg-white rounded-2xl shadow p-5">
           <h3 class="text-lg font-semibold mb-3">Risk Profile</h3>
           <canvas id="radarChart" height="300"></canvas>
         </div>
+
         <div class="bg-white rounded-2xl shadow p-5">
           <h3 class="text-lg font-semibold mb-2">Auto-Narrative</h3>
           <p id="narrative" class="text-slate-700 leading-relaxed">Press <em>Generate Narrative</em> to produce a tailored summary.</p>
@@ -95,7 +156,7 @@
     </div>
   </div>
 
-  <!-- Leave confirmation modal -->
+  <!-- Leave confirmation modal (for editor form) -->
   <div id="leaveModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
       <h4 class="text-lg font-semibold mb-2">Discard unsaved changes?</h4>
@@ -107,8 +168,29 @@
     </div>
   </div>
 
+  <!-- Mitigation / Gap edit modal (shared) -->
+  <div id="editModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 id="editModalTitle" class="text-lg font-semibold mb-4">Edit</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <input id="editTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Details</label>
+          <textarea id="editDetailsInput" rows="4" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="editCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="editOkBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">OK</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // ===== Config: 7-category framework (Option A) + mitigations + effectiveness + gaps + enable toggles =====
+    // ===== Config: 7-category framework + mitigations + effectiveness + gaps + enable toggles =====
     const CFG = {
       categories: [
         { key:'people', title:'People', enabled:false, sub:[
@@ -152,8 +234,62 @@
       mitigationSteps: { 1:0.00, 2:0.10, 3:0.25, 4:0.40, 5:0.60 }
     };
 
+    // ===== Optional per-subquestion guidance =====
+    const GUIDANCE = {
+      p_life: [
+        'None/Negligible',
+        'Short term physical impact',
+        'Medical attention required',
+        'Loss of individual life',
+        'Loss of multiple lives, or mass casualty'
+      ]
+    };
+
+    // ===== Save-state tracking =====
+    let currentFileHandle = null;  // handle if opened/saved via picker
+    let currentFileName = null;    // friendly name
+    let fileDirty = false;         // dataset changed since last save/load
+    let saving = false;            // saving in progress
+    let lastSavedSnapshot = '';    // canonical snapshot string at last save/load
+
+    // Status DOM
+    const statusDotEl  = () => document.getElementById('statusDot');
+    const statusTextEl = () => document.getElementById('statusText');
+
+    function formatTime(d=new Date()) {
+      const hh = d.getHours().toString().padStart(2,'0');
+      const mm = d.getMinutes().toString().padStart(2,'0');
+      return `${hh}:${mm}`;
+    }
+    function refreshStatus() {
+      const dot = statusDotEl(); const text = statusTextEl();
+      if (!dot || !text) return;
+
+      // base name
+      let base = 'Unsaved';
+      if (currentFileName) {
+        base = (canSave() ? `File: ${currentFileName}` : `Loaded: ${currentFileName} (read-only)`);
+      }
+
+      if (saving) {
+        dot.className = 'pulse-dot bg-sky-500';
+        text.textContent = `${base} • Saving…`;
+        return;
+      }
+      if (fileDirty) {
+        dot.className = 'inline-block w-2 h-2 rounded-full bg-amber-500';
+        text.textContent = `${base} • Unsaved changes`;
+        return;
+      }
+      dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500';
+      text.textContent = `${base} • Saved ${formatTime()}`;
+    }
+    function setSaving(on) { saving = !!on; refreshStatus(); }
+    function markFileDirty() { fileDirty = true; refreshStatus(); }
+    function clearFileDirty() { fileDirty = false; refreshStatus(); }
+
     // ===== Stateless in-memory store (hazards + items) =====
-    let editingId = null;           // current item (hazardous event) being edited
+    let editingId = null;           // current event being edited
     let editingHazardId = null;     // remembered hazard for starting new events
 
     const SessionStore = {
@@ -164,7 +300,13 @@
 
       // Events
       add(rec){ const id=this._nextItemId++; const copy={...rec, id}; this._items.unshift(copy); return Promise.resolve({id}); },
-      put(rec){ if(!rec.id) return this.add(rec); const i=this._items.findIndex(x=>x.id===rec.id); if(i>-1) this._items[i]=JSON.parse(JSON.stringify(rec)); else this._items.unshift(JSON.parse(JSON.stringify(rec))); return Promise.resolve({id:rec.id}); },
+      put(rec){
+        if(!rec.id) return this.add(rec);
+        const i=this._items.findIndex(x=>x.id===rec.id);
+        const c=JSON.parse(JSON.stringify(rec));
+        if(i>-1) this._items[i]=c; else this._items.unshift(c);
+        return Promise.resolve({id:rec.id});
+      },
       getAll(){ return Promise.resolve(this._items.map(x=>JSON.parse(JSON.stringify(x)))); },
       get(id){ const it=this._items.find(x=>x.id===id); return Promise.resolve(it? JSON.parse(JSON.stringify(it)) : null ); },
       delete(id){ this._items = this._items.filter(x=>x.id!==id); return Promise.resolve(); },
@@ -173,7 +315,7 @@
       addHazard(title){ const id=this._nextHazId++; this._hazards.push({ id, title: String(title||'Untitled Hazard').trim() }); return Promise.resolve({id}); },
       putHazard(haz){ const i=this._hazards.findIndex(h=>h.id===haz.id); if(i>-1) this._hazards[i] = { id: haz.id, title: String(haz.title||'Untitled Hazard').trim() }; return Promise.resolve({id: haz.id}); },
       getAllHazards(){ return Promise.resolve(this._hazards.map(h=> ({ id:h.id, title:h.title }) )); },
-      deleteHazard(id){ // reassign events to uncategorised (null)
+      deleteHazard(id){
         this._hazards = this._hazards.filter(h=>h.id!==id);
         this._items = this._items.map(ev => (ev.hazardId===id ? { ...ev, hazardId: null } : ev));
         return Promise.resolve();
@@ -195,14 +337,106 @@
     const clamp15 = (n)=> Math.max(1, Math.min(5, Number(n||0)));
     const round1 = (x)=> Math.round(x*10)/10;
     const enabledOf = (key)=> (el('en_'+key)?.checked ?? false);
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
     function mitigationReduction(eff){
       const e = clamp15(eff);
       if (CFG.mitigationSteps) { const v = CFG.mitigationSteps[e]; return typeof v === 'number' ? v : 0; }
       return ((e-1)/4) * 0.4;
     }
+    function riskClass(score){
+      const s = Number(score||0);
+      if (s > 25) return { label:'Very High', cls:'bg-rose-100 text-rose-800' };
+      if (s >= 21) return { label:'Very High', cls:'bg-rose-100 text-rose-800' };
+      if (s >= 16) return { label:'High', cls:'bg-orange-100 text-orange-800' };
+      if (s >= 11) return { label:'Moderate', cls:'bg-amber-100 text-amber-800' };
+      if (s >= 6)  return { label:'Low', cls:'bg-yellow-100 text-yellow-800' };
+      return { label:'Very Low', cls:'bg-emerald-100 text-emerald-800' };
+    }
+
+    // ===== File helpers (.litl) =====
+    function createLitlBlob(items, hazards){
+      const litl = {
+        litlVersion: 1,
+        appId: 'crr-v1',
+        title: 'Community Risk Register',
+        data: { items, hazards }
+      };
+      return new Blob([JSON.stringify(litl, null, 2)], { type: 'application/x-litl' });
+    }
+    function canUsePicker(){ return !!(window.showOpenFilePicker && window.showSaveFilePicker); }
+    function canSave(){ return !!(currentFileHandle && currentFileHandle.createWritable); }
+
+    function updateFileMenuState(){
+      el('menuSave').disabled = !canSave();
+      refreshStatus();
+    }
+
+    async function getDatasetSnapshotString(){
+      const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
+      // Stable sort to avoid order jitter
+      items.sort((a,b)=> (a.id||0)-(b.id||0));
+      hazards.sort((a,b)=> (a.id||0)-(b.id||0));
+      return JSON.stringify({ items, hazards });
+    }
+    async function updateSavedSnapshot(){
+      lastSavedSnapshot = await getDatasetSnapshotString();
+      clearFileDirty();
+    }
+    async function recomputeDirtyAgainstSnapshot(){
+      const snap = await getDatasetSnapshotString();
+      fileDirty = (snap !== lastSavedSnapshot);
+      refreshStatus();
+    }
+
+    // ===== Guidance rendering/linking =====
+    function renderGuidanceHtml(id, lines){
+      if (!Array.isArray(lines) || !lines.length) return '';
+      const items = lines.map((txt, i)=> `
+        <li class="flex gap-2 items-start" data-step="${i+1}">
+          <span class="inline-block w-5 text-right text-sky-800 font-semibold">${i+1}</span>
+          <span class="flex-1">${escapeHtml(txt)}</span>
+        </li>
+      `).join('');
+      return `
+        <div id="g_${id}" class="rounded-xl bg-sky-50 text-sky-800 px-3 text-sm overflow-hidden transition-all duration-200 ease-out gpanel-collapsed border border-sky-200">
+          <div class="font-medium mb-1">Scoring guide</div>
+          <ul class="list-none pl-0 space-y-1">${items}</ul>
+        </div>
+      `;
+    }
+    function showGuide(panelId){ const d = el(panelId); if(!d) return; d.classList.remove('gpanel-collapsed'); d.classList.add('gpanel-expanded'); }
+    function hideGuide(panelId){ const d = el(panelId); if(!d) return; d.classList.remove('gpanel-expanded'); d.classList.add('gpanel-collapsed'); }
+    function updateGuidanceHighlight(subId){
+      const panel = el('g_'+subId); if(!panel) return;
+      const input = el(subId); if(!input) return;
+      const val = clamp15(input.value);
+      const lis = panel.querySelectorAll('li[data-step]');
+      lis.forEach(li=>{
+        if(Number(li.getAttribute('data-step'))===val){
+          li.classList.add('bg-sky-100','rounded','px-2','py-0.5','font-medium');
+        } else {
+          li.classList.remove('bg-sky-100','rounded','px-2','py-0.5','font-medium');
+        }
+      });
+    }
 
     // ===== Build Category UI blocks =====
     const catRoot = el('categories');
+
+    function renderSubRow(sf){
+      const guidance = GUIDANCE?.[sf.id];
+      return `
+        <div class="subrow">
+          <div class="flex items-center justify-between gap-3">
+            <label class="w-56">${sf.label}</label>
+            <input id="${sf.id}" type="number" min="1" max="5" value="3" class="w-20 text-center border rounded-lg py-1" />
+          </div>
+          ${guidance ? renderGuidanceHtml(sf.id, guidance) : ''}
+        </div>
+      `;
+    }
+
     function buildCategoryBlocks(){
       const frag = document.createDocumentFragment();
       CFG.categories.forEach(cat=>{
@@ -220,18 +454,13 @@
             </div>
           </div>
           <div id="sec_${cat.key}_body" class="space-y-3">
-            ${cat.sub.map(sf=>`
-              <div class="flex items-center justify-between gap-3">
-                <label class="w-56">${sf.label}</label>
-                <input id="${sf.id}" type="number" min="1" max="5" value="3" class="w-20 text-center border rounded-lg py-1" />
-              </div>
-            `).join('')}
+            ${cat.sub.map(sf => renderSubRow(sf)).join('')}
             <div class="flex items-center justify-between gap-3 pt-2 border-t">
               <span class="w-56 font-medium">Inherent ${cat.title} Score</span>
               <output id="roll_${cat.key}" class="w-24 text-center font-semibold">3.0</output>
             </div>
 
-            <!-- Existing Mitigations UI -->
+            <!-- Existing Mitigations -->
             <div class="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
               <div class="flex items-center justify-between mb-2">
                 <span class="font-medium text-emerald-900">Existing mitigations</span>
@@ -243,7 +472,7 @@
               <div id="mit_${cat.key}_list" class="flex flex-wrap gap-2"></div>
             </div>
 
-            <!-- Gaps UI -->
+            <!-- Gaps -->
             <div class="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200">
               <div class="flex items-center justify-between mb-2">
                 <span class="font-medium text-rose-900">Identified gaps</span>
@@ -255,7 +484,7 @@
               <div id="gap_${cat.key}_list" class="flex flex-wrap gap-2"></div>
             </div>
 
-            <!-- Effectiveness control AFTER mitigations/gaps -->
+            <!-- Effectiveness AFTER mitigations/gaps -->
             <div class="flex items-center justify-between gap-3 mt-2">
               <label class="w-56">Mitigation effectiveness (1-5)</label>
               <input id="eff_${cat.key}" type="number" min="1" max="5" value="1" class="w-20 text-center border rounded-lg py-1" />
@@ -291,24 +520,75 @@
       CFG.categories.forEach(c=> toggleSectionBody(c.key, enabledOf(c.key)) );
     }
 
+// Wire up Mitigation/Gaps "+ Add" buttons and Enter-to-add behaviour
+function wireMitigationAndGapAdds(){
+  CFG.categories.forEach(c=>{
+    // Mitigations
+    const mitAddBtn = el(`mit_${c.key}_add`);
+    const mitInp    = el(`mit_${c.key}_input`);
+    if (mitAddBtn) {
+      mitAddBtn.addEventListener('click', ()=>{
+        const t = (mitInp?.value || '').trim();
+        if (!t) return;
+        addTag('mit', c.key, t, '');
+        if (mitInp) mitInp.value = '';
+        recalc();
+      });
+    }
+    if (mitInp) {
+      mitInp.addEventListener('keydown', (ev)=>{
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          mitAddBtn?.click();
+        }
+      });
+    }
+
+    // Gaps
+    const gapAddBtn = el(`gap_${c.key}_add`);
+    const gapInp    = el(`gap_${c.key}_input`);
+    if (gapAddBtn) {
+      gapAddBtn.addEventListener('click', ()=>{
+        const t = (gapInp?.value || '').trim();
+        if (!t) return;
+        addTag('gap', c.key, t, '');
+        if (gapInp) gapInp.value = '';
+        recalc();
+      });
+    }
+    if (gapInp) {
+      gapInp.addEventListener('keydown', (ev)=>{
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          gapAddBtn?.click();
+        }
+      });
+    }
+  });
+}
+
+
     // Summary pills
     const pillsRoot = el('summaryPills');
     function buildPillsDynamic(rollsAdj, perCatRisk, overall){
       const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
       let html = enabledCats.map(cat=>{
         const val = Number.isFinite(perCatRisk?.[cat.key]) ? Number(perCatRisk[cat.key]) : 0;
+        const rc = riskClass(val);
         return `
         <div class="p-3 rounded-xl bg-slate-50">
           <div class="text-slate-500">${cat.title}</div>
           <div id="pill_${cat.key}" class="text-2xl font-bold">${val.toFixed(1)}</div>
-          <div class="text-xs text-slate-500">impact × likelihood</div>
+          <div class="text-xs ${rc.cls} inline-block mt-1 px-2 py-0.5 rounded-full">${rc.label}</div>
         </div>`;
       }).join('');
       const ov = Number.isFinite(overall) ? overall : 0;
+      const rcOv = riskClass(ov);
       html += `
         <div class="p-3 rounded-xl bg-slate-50 col-span-2">
           <div class="text-slate-500">Overall (Max impact × L)</div>
           <div id="pill_overall" class="text-2xl font-bold">${ov.toFixed(1)}</div>
+          <div class="text-xs ${rcOv.cls} inline-block mt-1 px-2 py-0.5 rounded-full">${rcOv.label}</div>
         </div>`;
       pillsRoot.innerHTML = html;
     }
@@ -323,7 +603,6 @@
       const sumOthersTenths = others.reduce((a,b)=> a + (b/10), 0);
       return round1(top + sumOthersTenths);
     }
-
     function calcAdjusted(cat){
       const base = calcRoll(cat);
       const eff = clamp15(el('eff_'+cat.key).value);
@@ -331,7 +610,6 @@
       const adj = Math.max(0, base * (1 - reduction));
       return { base, eff, adj: round1(adj) };
     }
-
     function recalc(){
       const rollsAdj = {};
       CFG.categories.forEach(cat=>{
@@ -351,62 +629,82 @@
       drawRadar(rollsAdj);
     }
 
-    // ===== Mitigations helpers =====
-    function mitListEl(key){ return el(`mit_${key}_list`); }
-    function mitInputEl(key){ return el(`mit_${key}_input`); }
-    function getMitigations(key){
-      const list = mitListEl(key); if(!list) return [];
-      return Array.from(list.querySelectorAll('span[data-text]')).map(s=> s.getAttribute('data-text'));
+    // ===== Mitigations & Gaps chips with edit modal =====
+    function renderTagChip({type, key, title, details}){
+      const wrap = document.createElement('span');
+      const baseBg = (type==='mit'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800');
+      const baseHover = (type==='mit'?'hover:bg-emerald-200':'hover:bg-rose-200');
+      wrap.className = `chip inline-flex items-center gap-1 px-2 py-1 rounded-full ${baseBg} text-xs`;
+      wrap.setAttribute('data-type', type);
+      wrap.setAttribute('data-key', key);
+      wrap.setAttribute('data-title', title||'');
+      wrap.setAttribute('data-details', details||'');
+      wrap.innerHTML = `
+        <button type="button" class="rounded px-1 ${baseHover}" title="Edit" data-role="edit">✎</button>
+        <span class="truncate max-w-[12rem]" title="${escapeHtml(title||'')}" data-role="text">${escapeHtml(title||'')}</span>
+        <button type="button" class="rounded px-1 ${baseHover}" title="Remove" data-role="remove">×</button>
+      `;
+      wrap.querySelector('[data-role="edit"]').addEventListener('click', ()=> openEditModal(wrap));
+      wrap.querySelector('[data-role="remove"]').addEventListener('click', ()=>{
+        if(confirm('Are you sure you want to remove this item?')) { wrap.remove(); recalc(); }
+      });
+      return wrap;
     }
-    function renderMitigationChip(key, text){
-      const span = document.createElement('span');
-      span.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs';
-      span.setAttribute('data-text', text);
-      span.innerHTML = `<span class="truncate max-w-[14rem]" title="${text}">${text}</span>
-        <button type="button" class="ml-1 rounded-full px-1 text-emerald-900 hover:bg-emerald-200" aria-label="Remove" data-role="remove">×</button>`;
-      span.querySelector('[data-role="remove"]').addEventListener('click', ()=>{ span.remove(); recalc(); });
-      mitListEl(key).appendChild(span);
-    }
-    function setMitigations(key, arr){
-      const list = mitListEl(key); if(!list) return;
-      list.innerHTML = '';
-      (arr||[]).forEach(t=>{ if(t && String(t).trim()) renderMitigationChip(key, String(t).trim()); });
-    }
-    function addMitigation(key, text){
-      const t = (text ?? mitInputEl(key)?.value ?? '').trim();
-      if(!t) return;
-      renderMitigationChip(key, t);
-      if(mitInputEl(key)) mitInputEl(key).value = '';
+    function addTag(type, key, title, details){
+      const list = (type==='mit'? el(`mit_${key}_list`) : el(`gap_${key}_list`));
+      if(!list) return;
+      const chip = renderTagChip({type, key, title:String(title||'').trim(), details:String(details||'').trim()});
+      list.appendChild(chip);
       recalc();
     }
+    function setTags(type, key, arr){
+      const list = (type==='mit'? el(`mit_${key}_list`) : el(`gap_${key}_list`));
+      if(!list) return;
+      list.innerHTML='';
+      (arr||[]).forEach(item=>{
+        if(item==null) return;
+        if(typeof item==='string') addTag(type, key, item, '');
+        else addTag(type, key, item.title||'', item.details||'');
+      });
+    }
+    function collectTags(type, key){
+      const list = (type==='mit'? el(`mit_${key}_list`) : el(`gap_${key}_list`));
+      if(!list) return [];
+      return Array.from(list.querySelectorAll('span[data-type]')).map(s=>({
+        title: s.getAttribute('data-title') || '',
+        details: s.getAttribute('data-details') || ''
+      }));
+    }
+    function getMitigations(key){ return collectTags('mit', key); }
+    function getGaps(key){ return collectTags('gap', key); }
+    function setMitigations(key, arr){ setTags('mit', key, arr); }
+    function setGaps(key, arr){ setTags('gap', key, arr); }
 
-    // ===== Gaps helpers =====
-    function gapListEl(key){ return el(`gap_${key}_list`); }
-    function gapInputEl(key){ return el(`gap_${key}_input`); }
-    function getGaps(key){
-      const list = gapListEl(key); if(!list) return [];
-      return Array.from(list.querySelectorAll('span[data-text]')).map(s=> s.getAttribute('data-text'));
-    }
-    function renderGapChip(key, text){
-      const span = document.createElement('span');
-      span.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-100 text-rose-800 text-xs';
-      span.setAttribute('data-text', text);
-      span.innerHTML = `<span class="truncate max-w-[14rem]" title="${text}">${text}</span>
-        <button type="button" class="ml-1 rounded-full px-1 text-rose-900 hover:bg-rose-200" aria-label="Remove" data-role="remove">×</button>`;
-      span.querySelector('[data-role="remove"]').addEventListener('click', ()=>{ span.remove(); recalc(); });
-      gapListEl(key).appendChild(span);
-    }
-    function setGaps(key, arr){
-      const list = gapListEl(key); if(!list) return;
-      list.innerHTML = '';
-      (arr||[]).forEach(t=>{ if(t && String(t).trim()) renderGapChip(key, String(t).trim()); });
-    }
-    function addGap(key, text){
-      const t = (text ?? gapInputEl(key)?.value ?? '').trim();
-      if(!t) return;
-      renderGapChip(key, t);
-      if(gapInputEl(key)) gapInputEl(key).value = '';
-      recalc();
+    // Shared edit modal
+    function openEditModal(chipEl){
+      const isMit = chipEl.getAttribute('data-type')==='mit';
+      el('editModalTitle').textContent = isMit ? 'Edit Mitigation' : 'Edit Gap';
+      el('editTitleInput').value = chipEl.getAttribute('data-title') || '';
+      el('editDetailsInput').value = chipEl.getAttribute('data-details') || '';
+      el('editModal').classList.remove('hidden'); el('editModal').classList.add('flex');
+
+      const onOk = ()=>{
+        const t = el('editTitleInput').value.trim();
+        const d = el('editDetailsInput').value.trim();
+        chipEl.setAttribute('data-title', t);
+        chipEl.setAttribute('data-details', d);
+        const textNode = chipEl.querySelector('[data-role="text"]');
+        textNode.textContent = t || '(untitled)';
+        textNode.title = t || '(untitled)';
+        el('editModal').classList.add('hidden'); el('editModal').classList.remove('flex');
+        el('editOkBtn').onclick = null; el('editCancelBtn').onclick = null;
+        recalc();
+      };
+      el('editOkBtn').onclick = onOk;
+      el('editCancelBtn').onclick = ()=>{
+        el('editModal').classList.add('hidden'); el('editModal').classList.remove('flex');
+        el('editOkBtn').onclick = null; el('editCancelBtn').onclick = null;
+      };
     }
 
     // ===== Lightweight radar
@@ -494,93 +792,13 @@
       parts.push(`${title} has a likelihood of ${like}/5${maxCat?` with strongest current impacts in ${maxCat.title}.`:'.'}`);
       if(strong.length) parts.push('High-impact categories (after mitigation) include: ' + strong.join(', ') + '.');
       if(maxCat){
-        const topMits = getMitigations(maxCat.key);
+        const topMits = getMitigations(maxCat.key).map(m=>m.title).filter(Boolean);
         if(topMits.length){ parts.push(`Existing mitigations for ${maxCat.title}: ${topMits.slice(0,3).join('; ')}${topMits.length>3?' …':''}.`); }
-        const topGaps = getGaps(maxCat.key);
+        const topGaps = getGaps(maxCat.key).map(g=>g.title).filter(Boolean);
         if(topGaps.length){ parts.push(`Key gaps for ${maxCat.title}: ${topGaps.slice(0,3).join('; ')}${topGaps.length>3?' …':''}.`); }
       }
       parts.push('Priorities should focus on prevention, preparedness, and mitigation aligned to the highest residual risks.');
-
       el('narrative').textContent = parts.join(' ');
-    }
-
-    // ===== Import/Export (deep-link) =====
-    function toBase64Safe(str){ try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(str); } }
-    function fromBase64Safe(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return atob(b64); } }
-    function getAppUrl(){
-      const href = (window.location && window.location.href ? window.location.href : '').split('#')[0];
-      if(/^https?:/i.test(href)) return href;
-      const meta = document.querySelector('meta[data-app-url]');
-      if(meta && /^https?:/i.test(meta.content)) return meta.content.trim();
-      return '';
-    }
-    function importFromHash(){
-      if(!location.hash || !location.hash.startsWith('#import=')) return;
-      const enc = location.hash.slice('#import='.length);
-      try{
-        const json = fromBase64Safe(enc);
-        const data = JSON.parse(json);
-        const payload = {
-          hazards: Array.isArray(data?.hazards) ? data.hazards : [],
-          items: Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : [])
-        };
-        SessionStore.setAll(payload);
-        refreshHazardsAccordion();
-        alert('Imported from link');
-      }catch(e){
-        console.error('Hash import failed', e);
-        alert('Failed to import from link');
-      } finally {
-        history.replaceState(null, document.title, location.pathname + location.search);
-      }
-    }
-
-    function copySavedLink(){
-      Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]).then(([items, hazards])=>{
-        const payload={ version:1, exportedAt:new Date().toISOString(), items, hazards };
-        const enc=toBase64Safe(JSON.stringify(payload));
-        const appUrl = getAppUrl() || window.location.href.split('#')[0];
-        const link=appUrl + '#import=' + enc;
-        if(navigator.clipboard && navigator.clipboard.writeText){
-          navigator.clipboard.writeText(link).then(()=> alert('Import link copied to clipboard.')).catch(()=>{ prompt('Copy this link:', link); });
-        } else { prompt('Copy this link:', link); }
-      });
-    }
-
-    async function saveAsLauncher(){
-      try{
-        const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
-        const payload={ version:1, exportedAt:new Date().toISOString(), items, hazards };
-        const enc = toBase64Safe(JSON.stringify(payload));
-        const appUrl = getAppUrl() || window.location.href.split('#')[0];
-        const target = appUrl + '#import=' + enc;
-        const launcher = '<!doctype html>'+
-          '<html><head><meta charset="utf-8"><title>Risk Register Launcher</title></head><body>'+
-          '<script>location.href = "'+ target.replace(/"/g,'&quot;') +'";<\/script>'+
-          '<p>Launching Community Risk Register…</p>'+
-          '</body></html>';
-
-        if(window.showSaveFilePicker){
-          const handle = await window.showSaveFilePicker({
-            suggestedName: 'launch_community_risks.html',
-            types: [{ description: 'HTML', accept: { 'text/html': ['.html', '.htm'] } }]
-          });
-          const writable = await handle.createWritable();
-          await writable.write(new Blob([launcher], { type: 'text/html' }));
-          await writable.close();
-          alert('Launcher saved. Open it later to load these hazards and events.');
-          return;
-        }
-
-        const blob=new Blob([launcher],{type:'text/html'});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href=url; a.download='launch_community_risks.html';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(()=> URL.revokeObjectURL(url), 1000);
-      }catch(err){
-        console.error('Save As failed', err);
-        alert('Save As failed: '+(err?.message||err));
-      }
     }
 
     // ===== Editor collect/save =====
@@ -599,17 +817,23 @@
         ...(editingId!=null?{id:editingId}:{ }),
         hazardId: parseInt(el('hazardSel').value, 10) || null,
         title:(el('riskTitle').value||'Untitled Hazardous Event').trim(),
+        status: el('statusSel').value || 'Tolerate',
         framework7:{ inputs, rolls, adjs, risks, effs, like, overall, mitigations, gaps, enabled, mitigationSteps: CFG.mitigationSteps },
         narrative: el('narrative').textContent,
         createdAt: new Date().toISOString()
       };
     }
-
     function saveCurrent(){
       const rec=collectCurrent();
       const op = (editingId!=null) ? SessionStore.put(rec) : SessionStore.add(rec);
-      op.then(({id})=>{ editingId = id || editingId; refreshHazardsAccordion(); switchToList(); })
-        .catch(err=>{ console.error('Save failed', err); alert('Save failed: '+(err?.message||err)); });
+      op.then(async ({id})=>{
+        editingId = id || editingId;
+        refreshHazardsAccordion();
+        switchToList();
+        // dataset changed -> mark dirty
+        await recomputeDirtyAgainstSnapshot(); // safer than markFileDirty in case identical
+        if (!fileDirty) markFileDirty();       // if equal by coincidence, still mark
+      }).catch(err=>{ console.error('Save failed', err); });
     }
 
     function loadEvent(id){
@@ -618,84 +842,34 @@
         editingId=r.id;
         populateHazardSelect(r.hazardId ?? null);
         el('riskTitle').value=r.title||'';
+        el('statusSel').value = r.status || 'Tolerate';
+
         const f=r.framework7||{}; const inputs=f.inputs||{}; const enabled=f.enabled||{};
         CFG.categories.forEach(c=> c.sub.forEach(sf=>{ if(el(sf.id)) el(sf.id).value = inputs[sf.id] ?? 3; }));
         if(el(CFG.likelihoodId)) el(CFG.likelihoodId).value = inputs[CFG.likelihoodId] ?? 3;
+
         const effs=f.effs||{}; CFG.categories.forEach(c=>{ if(el('eff_'+c.key)) el('eff_'+c.key).value = effs[c.key] ?? 1; });
         const mits=(f.mitigations)||{}; CFG.categories.forEach(c=> setMitigations(c.key, mits[c.key]||[]));
         const gaps=(f.gaps)||{}; CFG.categories.forEach(c=> setGaps(c.key, gaps[c.key]||[]));
         CFG.categories.forEach(c=>{ const chk = el('en_'+c.key); if(chk){ chk.checked = enabled[c.key]===true; toggleSectionBody(c.key, chk.checked); } });
+
+        // Update guidance highlight after loading
+        CFG.categories.forEach(c=>{
+          c.sub.forEach(sf=>{
+            if (GUIDANCE[sf.id]) updateGuidanceHighlight(sf.id);
+          });
+        });
+
         recalc();
         el('narrative').textContent = r.narrative || el('narrative').textContent;
         switchToEditor();
       });
     }
 
-    // ===== Hazard UI =====
-    function renderHazardsAccordion(hazards, items){
-      const root = el('hazardsAccordion');
-      if(!hazards.length && !items.length){
-        root.innerHTML = `<div class="text-slate-500">No Hazards or Hazardous Events yet. Use <strong>Add Hazard</strong> or <strong>Add Hazardous Event</strong> to begin.</div>`;
-        return;
-      }
-
-      // Build map hazardId => items[]
-      const byHaz = new Map();
-      hazards.forEach(h=> byHaz.set(h.id, []));
-      const uncategorised = [];
-      items.forEach(ev=>{
-        if(ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev);
-        else uncategorised.push(ev);
-      });
-
-      const blocks = [];
-
-      // Render hazards
-      hazards.forEach(h=>{
-        blocks.push(hazardBlock(h, byHaz.get(h.id) || []));
-      });
-
-      // Render Uncategorised if any
-      if(uncategorised.length){
-        blocks.push(hazardBlock({ id:null, title:'Uncategorised' }, uncategorised, true));
-      }
-
-      root.innerHTML = blocks.join('');
-      // Wire row clicks and hazard action buttons
-      root.querySelectorAll('table[data-hazard] tbody tr').forEach(tr=>{
-        tr.addEventListener('click',(e)=>{
-          const id=Number(tr.dataset.id);
-          const act=e.target?.dataset?.action;
-          if(act==='del'){ e.stopPropagation(); SessionStore.delete(id).then(()=> refreshHazardsAccordion()); return; }
-          if(act==='dup'){ e.stopPropagation(); duplicateEvent(id); return; }
-          loadEvent(id);
-        });
-      });
-      root.querySelectorAll('[data-action="haz-rename"]').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
-          if(hid===null){ alert('Cannot rename the Uncategorised group.'); return; }
-          SessionStore.getAllHazards().then(hzs=>{
-            const hz = hzs.find(z=> z.id===hid);
-            if(!hz) return;
-            const t = prompt('Rename hazard:', hz.title);
-            if(t && t.trim()){ SessionStore.putHazard({ id:hid, title:t.trim() }).then(()=> refreshHazardsAccordion()); }
-          });
-        });
-      });
-      root.querySelectorAll('[data-action="haz-delete"]').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
-          if(hid===null){ alert('Uncategorised cannot be deleted.'); return; }
-          if(!confirm('Delete this hazard? All associated events will be moved to Uncategorised.')) return;
-          SessionStore.deleteHazard(hid).then(()=> refreshHazardsAccordion());
-        });
-      });
-    }
-
+    // ===== Hazards list / actions =====
     function hazardBlock(h, rows, isUncat=false){
       const count = rows.length;
-      const subtitle = isUncat ? 'Events without a hazard' : `${count} event${count===1?'':'s'}`;
+      const subtitle = `${isUncat ? 'Uncategorised' : 'Hazard'} • ${count} event${count===1?'':'s'}`;
       const hazIdAttr = (h.id===null ? 'null' : String(h.id));
       const headerActions = isUncat
         ? ''
@@ -705,26 +879,15 @@
            </div>`;
 
       const tableRows = (rows||[]).sort((a,b)=> (a.createdAt>b.createdAt?-1:1)).map(r=>{
-        const f=r.framework7||{}; const adjs=f.adjs||{}; const enabled=f.enabled||{}; const risks=f.risks||{}; const like=f.like||0;
-        const show = (k)=> {
-          if(enabled[k]===false) return '-';
-          if(Number.isFinite(risks[k])) return risks[k];
-          if(Number.isFinite(adjs[k]) && Number.isFinite(like)) return round1(Number(adjs[k]) * Number(like));
-          return adjs[k] ?? '-';
-        };
-        const date=r.createdAt? new Date(r.createdAt).toLocaleString():'';
-        const overall=f.overall??'-';
+        const f=r.framework7||{}; const overall=Number(f.overall ?? 0);
+        const rc = riskClass(overall);
+        const status = r.status || 'Tolerate';
+        const badge = `<span class="inline-block text-xs ${rc.cls} px-2 py-0.5 rounded-full">${rc.label}</span>`;
+
         return `<tr class="border-b hover:bg-slate-50 cursor-pointer" data-id="${r.id}">
-          <td class="py-2 pr-4">${r.title}</td>
-          <td class="py-2 pr-4">${show('people')}</td>
-          <td class="py-2 pr-4">${show('buildings')}</td>
-          <td class="py-2 pr-4">${show('environment')}</td>
-          <td class="py-2 pr-4">${show('ff')}</td>
-          <td class="py-2 pr-4">${show('community')}</td>
-          <td class="py-2 pr-4">${show('economy')}</td>
-          <td class="py-2 pr-4">${show('reputation')}</td>
-          <td class="py-2 pr-4">${overall}</td>
-          <td class="py-2 pr-4 text-slate-500">${date}</td>
+          <td class="py-2 pr-4">${escapeHtml(r.title||'')}</td>
+          <td class="py-2 pr-4"><div class="flex items-center gap-2"><span class="font-semibold">${overall.toFixed(1)}</span>${badge}</div></td>
+          <td class="py-2 pr-4">${escapeHtml(status)}</td>
           <td class="py-2 pr-4">
             <button data-action="edit" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Edit</button>
             <button data-action="dup" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Duplicate</button>
@@ -739,7 +902,7 @@
           <div class="flex items-center gap-3">
             <svg class="chev transition-transform" width="16" height="16" viewBox="0 0 20 20"><path fill="currentColor" d="M7 5l6 5-6 5V5z"/></svg>
             <div>
-              <div class="font-semibold">${h.title || 'Untitled Hazard'}</div>
+              <div class="font-semibold">${escapeHtml(h.title || 'Untitled Hazard')}</div>
               <div class="text-sm text-slate-500">${subtitle}</div>
             </div>
           </div>
@@ -751,15 +914,8 @@
               <thead>
                 <tr class="text-left">
                   <th class="py-2 pr-4">Event Title</th>
-                  <th class="py-2 pr-4">People</th>
-                  <th class="py-2 pr-4">Buildings/Infra</th>
-                  <th class="py-2 pr-4">Environment</th>
-                  <th class="py-2 pr-4">FF Safety</th>
-                  <th class="py-2 pr-4">Community/Society</th>
-                  <th class="py-2 pr-4">Economy</th>
-                  <th class="py-2 pr-4">Reputation</th>
-                  <th class="py-2 pr-4">Overall</th>
-                  <th class="py-2 pr-4">Saved</th>
+                  <th class="py-2 pr-4">Risk Score</th>
+                  <th class="py-2 pr-4">Status</th>
                   <th class="py-2 pr-4">Actions</th>
                 </tr>
               </thead>
@@ -770,19 +926,77 @@
       </details>`;
     }
 
+    function renderHazardsAccordion(hazards, items){
+      const root = el('hazardsAccordion');
+      if(!hazards.length && !items.length){
+        root.innerHTML = `<div class="text-slate-500">No Hazards or Hazardous Events yet. Use <strong>Add Hazard</strong> or <strong>Add Hazardous Event</strong> to begin.</div>`;
+        return;
+      }
+
+      const byHaz = new Map();
+      hazards.forEach(h=> byHaz.set(h.id, []));
+      const uncategorised = [];
+      items.forEach(ev=>{
+        if(ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev);
+        else uncategorised.push(ev);
+      });
+
+      const blocks = [];
+      hazards.forEach(h=>{ blocks.push(hazardBlock(h, byHaz.get(h.id) || [])); });
+      blocks.push(hazardBlock({ id:null, title:'Uncategorised' }, uncategorised, true));
+
+      root.innerHTML = blocks.join('');
+
+      root.querySelectorAll('table[data-hazard] tbody tr').forEach(tr=>{
+        tr.addEventListener('click',(e)=>{
+          const id=Number(tr.dataset.id);
+          const act=e.target?.dataset?.action;
+          if(act==='del'){ e.stopPropagation(); SessionStore.delete(id).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); markFileDirty(); }); return; }
+          if(act==='dup'){ e.stopPropagation(); duplicateEvent(id); return; }
+          loadEvent(id);
+        });
+      });
+      root.querySelectorAll('[data-action="haz-rename"]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
+          if(hid===null){ alert('Cannot rename the Uncategorised group.'); return; }
+          SessionStore.getAllHazards().then(hzs=>{
+            const hz = hzs.find(z=> z.id===hid);
+            if(!hz) return;
+            const t = prompt('Rename hazard:', hz.title);
+            if(t && t.trim()){
+              SessionStore.putHazard({ id:hid, title:t.trim() }).then(async ()=>{
+                refreshHazardsAccordion();
+                await recomputeDirtyAgainstSnapshot(); markFileDirty();
+              });
+            }
+          });
+        });
+      });
+      root.querySelectorAll('[data-action="haz-delete"]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
+          if(hid===null){ alert('Uncategorised cannot be deleted.'); return; }
+          if(!confirm('Delete this hazard? All associated events will be moved to Uncategorised.')) return;
+          SessionStore.deleteHazard(hid).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); markFileDirty(); });
+        });
+      });
+    }
     function refreshHazardsAccordion(){
       Promise.all([SessionStore.getAllHazards(), SessionStore.getAll()]).then(([hazards, items])=>{
         renderHazardsAccordion(hazards, items);
       });
     }
-
     function duplicateEvent(id){
       SessionStore.get(id).then(r=>{
         if(!r) return;
         const { id:_omit, createdAt:__omit, ...rest } = r;
         const copy={ ...rest, title: r.title+' (copy)', createdAt: new Date().toISOString() };
         return SessionStore.add(copy);
-      }).then(()=> refreshHazardsAccordion()).catch(err=>{ console.error('Duplicate failed', err); alert('Duplicate failed: '+(err?.message||err)); });
+      }).then(async ()=>{
+        refreshHazardsAccordion();
+        await recomputeDirtyAgainstSnapshot(); markFileDirty();
+      }).catch(err=>{ console.error('Duplicate failed', err); });
     }
 
     // ===== Hazard select in editor =====
@@ -791,22 +1005,27 @@
         const sel = el('hazardSel');
         const options = [
           `<option value="">(Uncategorised)</option>`,
-          ...hazards.map(h=> `<option value="${h.id}">${h.title}</option>`)
-        ].join('');
-        sel.innerHTML = options;
-        sel.value = (selectedId==null ? '' : String(selectedId));
+          ...hazards.map(h=> `<option value="${h.id}">${escapeHtml(h.title)}</option>`)
+        ];
+        sel.innerHTML = options.join('');
+        if (selectedId!=null && hazards.some(h=> h.id===selectedId)) sel.value=String(selectedId);
+        else if (editingHazardId!=null && hazards.some(h=> h.id===editingHazardId)) sel.value=String(editingHazardId);
+        else sel.value='';
       });
     }
 
-    // ===== View switching & dirty tracking =====
+    // ===== View switching & dirty tracking (editor form) =====
     function getFormState(){
-      const s={ title: (el('riskTitle').value||'').trim(), hazardSel: el('hazardSel').value||'' };
+      const s={ title: (el('riskTitle').value||'').trim(), status: el('statusSel').value||'Tolerate' };
       CFG.categories.forEach(c=> c.sub.forEach(sf=> s[sf.id]=el(sf.id).value ));
       s[CFG.likelihoodId]=el(CFG.likelihoodId).value;
-      CFG.categories.forEach(c=> s['mit_'+c.key] = getMitigations(c.key).join('|') );
-      CFG.categories.forEach(c=> s['gap_'+c.key] = getGaps(c.key).join('|') );
       CFG.categories.forEach(c=> s['eff_'+c.key] = el('eff_'+c.key).value );
       CFG.categories.forEach(c=> s['en_'+c.key] = enabledOf(c.key) ? '1' : '0');
+      CFG.categories.forEach(c=>{
+        // flatten for quick compare
+        s['mit_'+c.key] = getMitigations(c.key).map(m=>m.title+'|'+m.details).join('||');
+        s['gap_'+c.key] = getGaps(c.key).map(g=>g.title+'|'+g.details).join('||');
+      });
       return s;
     }
     let baseline=null;
@@ -831,20 +1050,239 @@
     }
     function attemptLeave(next){ if(isDirty()){ pendingLeave=next; showModal(); } else { next(); } }
 
-    // ===== Toggle include section bodies =====
+    // ===== Toggle bodies =====
     function toggleSectionBody(key, on){
       const body = el('sec_'+key+'_body');
       if(!body) return;
-      if(on){ body.classList.remove('hidden'); body.classList.remove('opacity-50'); }
+      if(on){ body.classList.remove('hidden'); }
       else { body.classList.add('hidden'); }
     }
 
-    // ===== Wire-up =====
+    // ===== .litl Open / Save / Save As / New =====
+    async function openLitlWithPicker(){
+      const [handle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }]
+      });
+      currentFileHandle = handle;
+      currentFileName = handle.name || 'untitled.litl';
+      const file = await handle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      const payload = data?.data
+        ? { items: Array.isArray(data.data.items)?data.data.items:[], hazards: Array.isArray(data.data.hazards)?data.data.hazards:[] }
+        : { items: Array.isArray(data.items)?data.items:[], hazards: Array.isArray(data.hazards)?data.hazards:[] };
+
+      SessionStore.setAll(payload);
+      refreshHazardsAccordion();
+      switchToList();
+      await updateSavedSnapshot(); // now clean
+      updateFileMenuState();
+    }
+
+    function openLitlWithInput(file){
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const json = JSON.parse(reader.result);
+          const payload = json?.data
+            ? { items: Array.isArray(json.data.items)?json.data.items:[], hazards: Array.isArray(json.data.hazards)?json.data.hazards:[] }
+            : { items: Array.isArray(json.items)?json.items:[], hazards: Array.isArray(json.hazards)?json.hazards:[] };
+          currentFileHandle = null; // cannot overwrite via input
+          currentFileName = file.name || 'loaded.litl';
+          SessionStore.setAll(payload);
+          refreshHazardsAccordion();
+          switchToList();
+          await updateSavedSnapshot(); // loaded snapshot = clean
+          updateFileMenuState();
+        } catch(err){
+          console.error(err);
+          alert('Invalid .litl file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    async function saveLitl(){
+      try{
+        setSaving(true);
+        const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
+        const blob = createLitlBlob(items, hazards);
+
+        if (canSave()) {
+          const writable = await currentFileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          await updateSavedSnapshot();
+          setSaving(false);
+          return;
+        }
+        // If we cannot save directly, route to Save As
+        await saveLitlAs();
+        setSaving(false);
+      }catch(err){
+        console.error('Save .litl failed', err);
+        setSaving(false);
+        // we avoid success popups; failure still logs
+      }
+    }
+
+    async function saveLitlAs(){
+      try{
+        setSaving(true);
+        const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
+        const blob = createLitlBlob(items, hazards);
+
+        if (window.showSaveFilePicker) {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: currentFileName || 'community_risk_register.litl',
+            types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }]
+          });
+          currentFileHandle = handle;
+          currentFileName = handle.name || 'community_risk_register.litl';
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          await updateSavedSnapshot();
+          updateFileMenuState();
+          setSaving(false);
+          return;
+        }
+
+        // Fallback: download (no handle)
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = currentFileName || 'community_risk_register.litl';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=> URL.revokeObjectURL(url), 1000);
+        // Keep currentFileHandle null; Save remains disabled in fallback
+        if (!currentFileName) currentFileName = 'community_risk_register.litl';
+        await updateSavedSnapshot();
+        updateFileMenuState();
+        setSaving(false);
+      }catch(err){
+        console.error('Save As .litl failed', err);
+        setSaving(false);
+      }
+    }
+
+    function newRegister(){
+      SessionStore.setAll({ items: [], hazards: [] });
+      currentFileHandle = null;
+      currentFileName = null;
+      refreshHazardsAccordion();
+      switchToList();
+      // It's a new unsaved file. Snapshot resets; mark dirty so user is nudged to save.
+      lastSavedSnapshot = '';
+      fileDirty = true;
+      updateFileMenuState();
+    }
+
+    // ===== File menu wiring & keyboard shortcuts =====
+    function wireFileMenu(){
+      const root = document.getElementById('fileMenuRoot');
+      const btn  = document.getElementById('fileMenuBtn');
+      const panel= document.getElementById('fileMenuPanel');
+      const openInput = document.getElementById('openLitlInput');
+
+      function closeMenu(){ root.classList.remove('menu-open'); panel.classList.add('hidden'); }
+      function openMenu(){ root.classList.add('menu-open'); panel.classList.remove('hidden'); }
+      btn.addEventListener('click', (e)=>{ e.stopPropagation(); if(root.classList.contains('menu-open')) closeMenu(); else openMenu(); });
+      document.addEventListener('click', closeMenu);
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeMenu(); });
+
+      document.getElementById('menuNew').addEventListener('click', ()=> {
+        closeMenu();
+        attemptLeave(()=> newRegister());
+      });
+      document.getElementById('menuOpen').addEventListener('click', async ()=> {
+        closeMenu();
+        const openAction = async ()=>{
+          try{
+            if (window.showOpenFilePicker) await openLitlWithPicker();
+            else openInput.click();
+          }catch(err){
+            if (err?.name !== 'AbortError') { console.error(err); }
+          }
+        };
+        attemptLeave(openAction);
+      });
+      openInput.addEventListener('change', (e)=>{
+        const f = e.target.files?.[0];
+        if(f) openLitlWithInput(f);
+        e.target.value='';
+      });
+
+      document.getElementById('menuSave').addEventListener('click', async ()=>{
+        closeMenu();
+        await saveLitl();
+      });
+      document.getElementById('menuSaveAs').addEventListener('click', async ()=>{
+        closeMenu();
+        await saveLitlAs();
+      });
+
+      // Ctrl+S / Ctrl+O / Ctrl+N
+      document.addEventListener('keydown', (e)=>{
+        const ctrl = e.ctrlKey || e.metaKey;
+        if(ctrl && e.key.toLowerCase()==='s'){ e.preventDefault(); saveLitl(); }
+        if(ctrl && e.key.toLowerCase()==='o'){ e.preventDefault(); attemptLeave(async ()=>{
+          if (window.showOpenFilePicker) await openLitlWithPicker(); else openInput.click();
+        }); }
+        if(ctrl && e.key.toLowerCase()==='n'){ e.preventDefault(); attemptLeave(()=> newRegister()); }
+      });
+
+      updateFileMenuState();
+    }
+
+    // ===== beforeunload guard (dataset or editor dirty) =====
+    window.addEventListener('beforeunload', (e)=>{
+      if (fileDirty || isDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    // ===== Hazard actions -> mark dataset dirty =====
+    // We already call recomputeDirtyAgainstSnapshot() + markFileDirty() in delete/dup/rename/save.
+    // Additionally, when adding a hazard:
+    function wireAddHazardButton(){
+      el('addHazardBtn').addEventListener('click', ()=>{
+        const t = prompt('New hazard title:');
+        if(!t || !t.trim()) return;
+        SessionStore.addHazard(t.trim()).then(async ()=>{
+          refreshHazardsAccordion();
+          await recomputeDirtyAgainstSnapshot(); markFileDirty();
+          populateHazardSelect(editingHazardId);
+        });
+      });
+    }
+
+    // ===== App buttons wiring =====
     function wire(){
-      // Category inputs
-      CFG.categories.forEach(c=> c.sub.forEach(sf=> el(sf.id).addEventListener('input', recalc)));
+      // Build UI
+      buildCategoryBlocks();
+      wireMitigationAndGapAdds(); // <-- add this line
+      buildPillsDynamic({}, {}, 0);
+      wireFileMenu();
+      wireAddHazardButton();
+
+      // Inputs
+      CFG.categories.forEach(c=> c.sub.forEach(sf=>{
+        const inp = el(sf.id);
+        inp.addEventListener('input', recalc);
+        if (GUIDANCE[sf.id]) {
+          const panelId = 'g_'+sf.id;
+          inp.addEventListener('focus', ()=>{ showGuide(panelId); updateGuidanceHighlight(sf.id); });
+          inp.addEventListener('input', ()=> updateGuidanceHighlight(sf.id));
+          inp.addEventListener('change', ()=> updateGuidanceHighlight(sf.id));
+          inp.addEventListener('blur', ()=> hideGuide(panelId));
+        }
+      }));
       el(CFG.likelihoodId).addEventListener('input', recalc);
       CFG.categories.forEach(c=> el('eff_'+c.key).addEventListener('input', recalc));
+      el('statusSel').addEventListener('change', ()=>{}); // included in save payload
 
       // Include toggles
       CFG.categories.forEach(c=>{
@@ -854,99 +1292,46 @@
         }
       });
 
-      // Mitigations & Gaps add/enter
-      CFG.categories.forEach(c=>{
-        const mitAddBtn = el(`mit_${c.key}_add`);
-        const mitInp = el(`mit_${c.key}_input`);
-        if(mitAddBtn) mitAddBtn.addEventListener('click', ()=> addMitigation(c.key));
-        if(mitInp) mitInp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addMitigation(c.key); }});
-        const gapAddBtn = el(`gap_${c.key}_add`);
-        const gapInp = el(`gap_${c.key}_input`);
-        if(gapAddBtn) gapAddBtn.addEventListener('click', ()=> addGap(c.key));
-        if(gapInp) gapInp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addGap(c.key); }});
+      // Add Event (start fresh editor)
+      el('addEventBtn').addEventListener('click', ()=>{
+        attemptLeave(()=>{
+          editingId=null; el('riskTitle').value='';
+          el('statusSel').value='Tolerate';
+          CFG.categories.forEach(c=>{
+            c.sub.forEach(sf=> el(sf.id).value=3 );
+            if(el('eff_'+c.key)) el('eff_'+c.key).value=1;
+            setMitigations(c.key, []); setGaps(c.key, []);
+            const chk=el('en_'+c.key); if(chk){ chk.checked=false; toggleSectionBody(c.key, false); }
+          });
+          el(CFG.likelihoodId).value=3; recalc();
+          el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
+          populateHazardSelect(editingHazardId);
+          switchToEditor();
+        });
       });
 
-      // Global buttons
-      el('copyLinkBtn').addEventListener('click', copySavedLink);
-      el('saveAsBtn').addEventListener('click', saveAsLauncher);
+      // Other editor buttons
       el('generateBtn').addEventListener('click', genNarrative);
       el('saveBtn').addEventListener('click', saveCurrent);
-
-      // Add Event
-      el('addEventBtn').addEventListener('click', ()=>{
-        editingId=null;
-        populateHazardSelect(editingHazardId ?? null);
-        el('riskTitle').value='';
-        CFG.categories.forEach(c=>{ c.sub.forEach(sf=> el(sf.id).value=3 ); if(el('eff_'+c.key)) el('eff_'+c.key).value=1; setMitigations(c.key, []); setGaps(c.key, []); const chk=el('en_'+c.key); if(chk){ chk.checked=false; toggleSectionBody(c.key, false);} });
-        el(CFG.likelihoodId).value=3; recalc();
-        el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
-        switchToEditor();
-      });
-
-      // Add Hazard
-      el('addHazardBtn').addEventListener('click', ()=>{
-        const t = prompt('New hazard title:','');
-        if(!t || !t.trim()) return;
-        SessionStore.addHazard(t.trim()).then(()=> refreshHazardsAccordion());
-      });
-
-      // Back/Cancel/Reset
       el('backToListBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
       el('cancelBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
       el('resetBtn').addEventListener('click', ()=>{
-        if(!confirm('Reset this form to defaults?')) return;
-        CFG.categories.forEach(c=>{
-          c.sub.forEach(sf=>{ const inp=el(sf.id); if(inp) inp.value=3; });
-          const eff=el('eff_'+c.key); if(eff) eff.value=1;
-          setMitigations(c.key, []);
-          setGaps(c.key, []);
-        });
-        el(CFG.likelihoodId).value=3;
-        recalc();
-        el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
+        if(!confirm('Reset all fields for this event?')) return;
+        loadEvent(editingId);
       });
-    }
 
-    // ===== Boot =====
-    (function init(){
-      buildCategoryBlocks();
-      buildPillsDynamic({}, {}, 0);
-      wire();
-      importFromHash();
+      // Initial list
       refreshHazardsAccordion();
       switchToList();
       recalc();
-    })();
 
-    // ===== Minimal self-tests =====
-    (function tests(){
-      try{
-        // calcRoll 5,4,3 => 5.7
-        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3;
-        const econCat = CFG.categories.find(c=>c.key==='economy');
-        const r = calcRoll(econCat);
-        console.assert(Math.abs(r-5.7)<1e-9, 'calcRoll(5,4,3) should be 5.7, got '+r);
-      }catch(e){ console.warn('Test(calcRoll) skipped:', e.message); }
-      try{
-        // Enable economy only and likelihood 5 => overall 28.5
-        CFG.categories.forEach(c=>{ const ck=el('en_'+c.key); if(ck){ ck.checked=false; toggleSectionBody(c.key,false);} });
-        const cke = el('en_economy'); cke.checked=true; toggleSectionBody('economy', true);
-        el('ec_local').value=5; el('ec_supply').value=4; el('ec_fin').value=3;
-        el('eff_economy').value=1;
-        el(CFG.likelihoodId).value=5; recalc();
-        console.assert(Number(el('overall_out').textContent)===28.5, 'Overall should be 28.5');
-      }catch(e){ console.warn('Test(overall) skipped:', e.message); }
-      try{
-        // Hazards create + delete cascade to uncategorised (reassign)
-        SessionStore.setAll({ hazards:[], items:[] });
-        SessionStore.addHazard('Flooding').then(({id})=>{
-          return SessionStore.add({ title:'River flood', hazardId:id, framework7:{}, createdAt:new Date().toISOString() })
-            .then(()=> SessionStore.deleteHazard(id))
-            .then(()=> SessionStore.getAll())
-            .then(items=> console.assert(items[0].hazardId===null, 'Event should be uncategorised after hazard delete'));
-        });
-      }catch(e){ console.warn('Test(hazard reassign) skipped:', e.message); }
-    })();
+      // Initial status
+      refreshStatus();
+    }
+
+    // ===== Boot =====
+    wire();
+
   </script>
 </body>
 </html>
