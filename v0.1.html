@@ -6,40 +6,117 @@
   <title>Community Risk Register - Single Page Demo</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* Number inputs */
     input[type=number]::-webkit-inner-spin-button,
     input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* Toggle switch */
     .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
     .switch input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 9999px; }
     .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 9999px; }
     .switch input:checked + .slider { background-color: #16a34a; }
     .switch input:checked + .slider:before { transform: translateX(20px); }
-    #radarChart { width: 100%; height: 300px; display: block; }
-    details[open] summary .chev { transform: rotate(90deg); }
+
+    /* Chips */
     .chip { transition: background .15s ease; }
     .chip:hover { filter: brightness(0.97); }
+
+    /* Radar canvas */
+    #radarChart { width: 100%; height: 300px; display: block; }
+
+    /* Accordion chevron */
+    details[open] summary .chev { transform: rotate(90deg); }
+
+    /* Modal backdrop */
     .modal-backdrop { background-color: rgba(0,0,0,0.4); }
-    /* Guidance collapse zero-height styling */
-    .gpanel-collapsed { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; border-width: 0; }
+
+    /* Guidance collapse */
+    .gpanel-collapsed { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; border-width: 0; overflow: hidden; }
     .gpanel-expanded { max-height: 24rem; opacity: 1; padding-top: 0.5rem; padding-bottom: 0.5rem; margin-top: 0.5rem; border-width: 1px; }
-    /* Menu */
+
+    /* ===== Tabs ===== */
+    .tabs { display: flex; gap: .25rem; border-bottom: 1px solid #e2e8f0; }
+    .tab-btn {
+      padding: .5rem 1rem;
+      border-radius: .5rem .5rem 0 0;
+      border: 1px solid transparent;
+      font-weight: 600;
+      color: #475569;
+      background: #f1f5f9;
+    }
+    .tab-btn:hover { background: #e2e8f0; }
+    .tab-btn-active {
+      color: #0f172a;
+      background: #ffffff;
+      border-color: #e2e8f0;
+      border-bottom-color: transparent;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    
+    .tbody-fade { transition: opacity .18s ease; opacity: 1; }
+
+    
+    .th-sort { background: transparent; border: 0; padding: 0; cursor: pointer; }
+.th-sort:focus-visible { outline: 2px solid #94a3b8; outline-offset: 2px; }
+
+    /* ===== RTE box ===== */
+    .rte-box { border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff; }
+    .rte-toolbar {
+      display: flex; gap: .5rem; flex-wrap: wrap;
+      padding: .5rem; background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      border-top-left-radius: .75rem; border-top-right-radius: .75rem;
+    }
+    .rte-toolbar button {
+      padding: .25rem .5rem; border-radius: .5rem;
+      border: 1px solid #cbd5e1; background: #fff;
+      font-size: .875rem; color: #334155;
+    }
+    .rte-toolbar button:hover { background: #f1f5f9; }
+    .rte-editor {
+      min-height: 140px; padding: .75rem; outline: none;
+      border-bottom-left-radius: .75rem; border-bottom-right-radius: .75rem;
+    }
+    .rte-editor:focus { box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
+
+    /* ===== Sticky Aside on lg+ ===== */
+    @media (min-width: 1024px){
+      .sticky-aside {
+        position: sticky;
+        top: 1rem;
+        align-self: flex-start;
+      }
+    }
+
+    /* ===== Plan tab gap pill system ===== */
+    .pill { padding: .25rem .5rem; border-radius: 9999px; font-size: .75rem; border: 1px solid transparent; }
+    .pill-red    { background: #fee2e2; color: #991b1b; border-color: #fecaca; }   /* danger */
+    .pill-amber  { background: #fef3c7; color: #92400e; border-color: #fde68a; }   /* addressed */
+    .pill-muted  { background: transparent; color: #475569; border-color: #cbd5e1; opacity: .75; }
+.gap-pill {
+  padding: .25rem .5rem;
+  border-radius: 9999px;
+  font-size: .75rem;
+  cursor: pointer;
+  /* no background/border/color here */
+}
+
+/* (nice to have) keyboard focus */
+.gap-pill:focus-visible {
+  outline: 2px solid #94a3b8;
+  outline-offset: 2px;
+}
+    /* File menu + status */
     .menu-open .menu-panel { display: block; }
-    /* Tiny animated dot for "Saving…" */
-    .pulse-dot {
-      width: 0.5rem; height: 0.5rem; border-radius: 9999px;
-      display: inline-block; margin-right: 0.5rem;
-      animation: pulse 1.2s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(0.6); opacity: 0.6; }
-      100% { transform: scale(1); opacity: 1; }
-    }
+    .pulse-dot { width:.5rem; height:.5rem; border-radius:9999px; display:inline-block; margin-right:.5rem; animation:pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%{transform:scale(1);opacity:1} 50%{transform:scale(.6);opacity:.6} 100%{transform:scale(1);opacity:1} }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-  <!-- Top "File" menu bar -->
+  <!-- ===== Top "File" menu bar (restored) ===== -->
   <nav class="bg-white border-b shadow-sm">
     <div class="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between">
       <div class="relative" id="fileMenuRoot">
@@ -55,15 +132,14 @@
         </div>
       </div>
 
-      <!-- Status area (top-right) -->
+      <!-- Status (top-right) -->
       <div id="fileStatus" class="text-sm text-slate-500 flex items-center gap-2">
-        <!-- Dot + label will be injected -->
         <span id="statusDot" class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
         <span id="statusText">Unsaved</span>
       </div>
     </div>
-    <!-- Hidden input for Open fallback -->
-    <input id="openLitlInput" type="file" accept=".litl,.ltil,application/x-litl" class="hidden" />
+    <!-- Fallback input for Open if File System Access API unavailable -->
+    <input id="openLitlInput" type="file" accept=".litl,application/x-litl" class="hidden" />
   </nav>
 
   <div class="max-w-7xl mx-auto p-6">
@@ -76,27 +152,44 @@
       <div class="flex flex-wrap items-center gap-3">
         <button id="addHazardBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium">Add Hazard</button>
         <button id="addEventBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add Hazardous Event</button>
+        <!-- Removed: Copy Link / Save As buttons (now handled by File menu) -->
       </div>
     </header>
 
-    <!-- Hazards + Events List (Accordion) -->
+    <!-- List View -->
     <section id="listView" class="mb-6">
       <div class="bg-white rounded-2xl shadow p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xl font-semibold">Hazards</h2>
-          <div class="text-sm text-slate-500">Expand a hazard to view and edit its hazardous events</div>
-        </div>
+<div class="flex items-center justify-between mb-3">
+  <h2 class="text-xl font-semibold">Hazards</h2>
+  <div class="text-sm text-slate-500">Expand a hazard to view and edit its hazardous events</div>
+</div>
 
-        <div id="hazardsAccordion" class="space-y-3">
-          <!-- dynamically rendered -->
-        </div>
+<!-- New: list view tabs + search -->
+<div class="flex items-center justify-between mb-3">
+  <div class="tabs" id="listTabs">
+    <button class="tab-btn tab-btn-active" data-listtab="grouped">Grouped by Hazard</button>
+    <button class="tab-btn" data-listtab="all">All Events</button>
+  </div>
+
+  <div class="relative">
+    <input id="listSearch" type="search" placeholder="Search event titles…"
+           class="px-3 py-2 rounded-xl border w-64" />
+    <!-- tiny clear button, optional -->
+    <button id="listSearchClear"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            aria-label="Clear search" title="Clear search" type="button">×</button>
+  </div>
+</div>
+
+        <div id="hazardsAccordion" class="space-y-3"></div>
       </div>
     </section>
 
-    <!-- Editor view (single Hazardous Event) -->
+    <!-- Editor View -->
     <div id="editorView" class="grid lg:grid-cols-3 gap-6 hidden">
       <section class="lg:col-span-2">
         <div class="bg-white rounded-2xl shadow p-5 space-y-6">
+
           <!-- Title + Hazard selection -->
           <div class="flex flex-col gap-3">
             <div class="flex items-center gap-3">
@@ -113,18 +206,66 @@
             </div>
           </div>
 
-          <!-- categories: one per row -->
-          <div id="categories" class="flex flex-col gap-5"></div>
+          <!-- ===== Tabs ===== -->
+          <div class="tabs">
+            <button class="tab-btn tab-btn-active" data-tab="details">Details</button>
+            <button class="tab-btn" data-tab="risk">Community Risk</button>
+            <button class="tab-btn" data-tab="plan">Plan</button>
+          </div>
 
-          <div class="flex items-center gap-3">
-            <button id="generateBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Generate Narrative</button>
-            <button id="saveBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Save Event</button>
+          <!-- ===== Details tab ===== -->
+          <div id="tab_details" class="tab-panel active space-y-4 pt-4">
+            <div class="border rounded-2xl p-4">
+              <label class="block font-semibold mb-2">Description</label>
+              <div class="rte-box">
+                <div class="rte-toolbar">
+                  <button type="button" data-cmd="bold"><strong>Bold</strong></button>
+                  <button type="button" data-cmd="italic"><em>Italic</em></button>
+                  <button type="button" data-cmd="insertUnorderedList">Bulleted</button>
+                  <button type="button" data-cmd="insertOrderedList">Numbered</button>
+                  <button type="button" data-link>Link</button>
+                  <button type="button" data-clear>Clear</button>
+                </div>
+                <div id="descEditor" class="rte-editor" contenteditable="true" spellcheck="true"></div>
+              </div>
+            </div>
+
+            <!-- Associated Links -->
+            <div class="border rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-semibold">Associated Links</label>
+                <button id="addLinkBtn" class="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm">+ Add Link</button>
+              </div>
+              <div id="linksList" class="mt-2 space-y-2"></div>
+            </div>
+          </div>
+
+          <!-- ===== Risk tab ===== -->
+          <div id="tab_risk" class="tab-panel space-y-4 pt-4">
+            <div id="categories" class="flex flex-col gap-5"></div>
+          </div>
+
+          <!-- ===== Plan tab ===== -->
+          <div id="tab_plan" class="tab-panel pt-4 space-y-4">
+            <div class="border rounded-2xl p-4">
+            <h3 class="text-lg font-semibold mb-2">Gaps Overview</h3>
+            <!-- Grouped by Risk Group -->
+            <div id="plan_gaps_by_group" class="space-y-3"></div>
+            </div>
+
+
+            <div class="border rounded-2xl p-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Actions</h3>
+                <button id="addActionBtn" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm">+ Add Action</button>
+              </div>
+              <div id="actionsList" class="mt-3 space-y-3"></div>
+            </div>
           </div>
         </div>
       </section>
 
-      <aside class="space-y-6">
-        <!-- Status control -->
+      <aside class="space-y-6 sticky-aside">
         <div class="bg-white rounded-2xl shadow p-5 space-y-3">
           <h3 class="text-lg font-semibold">Controls</h3>
           <div class="flex items-center gap-3">
@@ -135,6 +276,12 @@
               <option value="Transfer">Transfer</option>
               <option value="Terminate">Terminate</option>
             </select>
+          </div>
+          <div class="pt-2 border-t">
+            <div class="flex flex-wrap gap-2">
+              <button id="generateBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Generate Narrative</button>
+              <button id="saveBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Save Event</button>
+            </div>
           </div>
         </div>
 
@@ -156,19 +303,32 @@
     </div>
   </div>
 
-  <!-- Leave confirmation modal (for editor form) -->
-  <div id="leaveModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-      <h4 class="text-lg font-semibold mb-2">Discard unsaved changes?</h4>
-      <p class="text-slate-600 mb-4">You have unsaved changes. If you continue, your edits will be lost.</p>
-      <div class="flex justify-end gap-2">
-        <button id="keepEditingBtn" class="px-4 py-2 rounded-xl border">Continue editing</button>
-        <button id="discardChangesBtn" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white">Discard changes</button>
+  <!-- Links modal -->
+  <div id="linkModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 class="text-lg font-semibold mb-4" id="linkModalTitle">Add Link</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <input id="linkTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Description</label>
+          <textarea id="linkDescInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">URL</label>
+          <input id="linkUrlInput" type="url" placeholder="https://…" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="linkCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="linkOkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white">OK</button>
       </div>
     </div>
   </div>
 
-  <!-- Mitigation / Gap edit modal (shared) -->
+  <!-- Edit chip modal -->
   <div id="editModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
       <h4 id="editModalTitle" class="text-lg font-semibold mb-4">Edit</h4>
@@ -189,14 +349,54 @@
     </div>
   </div>
 
+  <!-- Action (Plan) modal -->
+  <div id="actionModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6">
+      <h4 id="actionModalTitle" class="text-lg font-semibold mb-4">Add Action</h4>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <input id="actionTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">Start</label>
+            <input id="actionStartInput" type="date" class="w-full px-3 py-2 rounded-xl border" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">End</label>
+            <input id="actionEndInput" type="date" class="w-full px-3 py-2 rounded-xl border" />
+          </div>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1">Outline Plan</label>
+          <textarea id="actionOutlineInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="flex items-center justify-between">
+          <h5 class="font-semibold">Select Gaps this action will address</h5>
+          <div class="text-xs text-slate-500">Click to toggle selection</div>
+        </div>
+        <div id="actionGapPicker" class="mt-2 flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="actionCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="actionOkBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white">Save Action</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // ===== Config: 7-category framework + mitigations + effectiveness + gaps + enable toggles =====
+    // ===== Config =====
     const CFG = {
       categories: [
         { key:'people', title:'People', enabled:false, sub:[
-          {id:'p_life', label:'Life safety (injury, fatality)'},
-          {id:'p_health', label:'Health & wellbeing (physical, psychological)'},
-          {id:'p_vuln', label:'Socio-economic vulnerabilities'}
+          { id:'p_phys',  label:'Physical Harm' },
+          { id:'p_psych', label:'Psychological Harm' },
+          { id:'p_fin',   label:'Financial Harm' }
         ]},
         { key:'buildings', title:'Buildings & Infrastructure', enabled:false, sub:[
           {id:'b_stock', label:'Premises (domestic, commercial, industrial, heritage, high-risk)'},
@@ -234,71 +434,98 @@
       mitigationSteps: { 1:0.00, 2:0.10, 3:0.25, 4:0.40, 5:0.60 }
     };
 
-    // ===== Optional per-subquestion guidance =====
+    // Guidance example
     const GUIDANCE = {
-      p_life: [
-        'None/Negligible',
-        'Short term physical impact',
+      p_phys: [
+        'None / negligible injury',
+        'Minor first aid',
         'Medical attention required',
-        'Loss of individual life',
-        'Loss of multiple lives, or mass casualty'
+        'Serious injury / hospitalization',
+        'Multiple serious injuries / fatalities'
+      ],
+      p_psych: [
+        'No noticeable impact',
+        'Temporary distress',
+        'Short-term clinical support needed',
+        'Long-term individual impact',
+        'Widespread or severe psychological harm'
+      ],
+      p_fin: [
+        'No measurable cost',
+        'Minor personal costs',
+        'Significant personal/household costs',
+        'Severe financial hardship',
+        'Widespread financial harm'
       ]
     };
+    
+        // ===== Global event list sorting =====
+    
+    // ===== List view state (mode + search) =====
+let LIST_VIEW_MODE = 'grouped'; // 'grouped' | 'all'
+let LIST_SEARCH = '';           // current query
 
-    // ===== Save-state tracking =====
-    let currentFileHandle = null;  // handle if opened/saved via picker
-    let currentFileName = null;    // friendly name
-    let fileDirty = false;         // dataset changed since last save/load
-    let saving = false;            // saving in progress
-    let lastSavedSnapshot = '';    // canonical snapshot string at last save/load
+function normalize(s){ return (s||'').toString().toLowerCase(); }
+function filterItemsBySearch(items){
+  const q = normalize(LIST_SEARCH).trim();
+  if(!q) return items;
+  return items.filter(ev => normalize(ev.title).includes(q));
+}
 
-    // Status DOM
-    const statusDotEl  = () => document.getElementById('statusDot');
-    const statusTextEl = () => document.getElementById('statusText');
+// Update the tab button styles
+function updateListTabsUI(){
+  document.querySelectorAll('[data-listtab]').forEach(b=>{
+    const on = (b.getAttribute('data-listtab') === LIST_VIEW_MODE);
+    b.classList.toggle('tab-btn-active', on);
+    b.classList.toggle('tab-btn-inactive', !on);
+  });
+}
 
-    function formatTime(d=new Date()) {
-      const hh = d.getHours().toString().padStart(2,'0');
-      const mm = d.getMinutes().toString().padStart(2,'0');
-      return `${hh}:${mm}`;
+    
+    const EVENT_SORT = { key: 'score', dir: 'desc' }; // default: Risk Score ↓
+
+    const sortComparators = {
+      title: (a,b)=> (a.title||'').localeCompare(b.title||'', undefined, {sensitivity:'base'}),
+      status:(a,b)=> (a.status||'').localeCompare(b.status||'', undefined, {sensitivity:'base'}),
+      score: (a,b)=> Number((a.framework7||{}).overall||0) - Number((b.framework7||{}).overall||0)
+    };
+
+    function sortEvents(rows){
+      const cmp = sortComparators[EVENT_SORT.key] || sortComparators.score;
+      const out = rows.slice().sort(cmp);
+      if (EVENT_SORT.dir === 'desc') out.reverse();
+      return out;
     }
-    function refreshStatus() {
-      const dot = statusDotEl(); const text = statusTextEl();
-      if (!dot || !text) return;
-
-      // base name
-      let base = 'Unsaved';
-      if (currentFileName) {
-        base = (canSave() ? `File: ${currentFileName}` : `Loaded: ${currentFileName} (read-only)`);
-      }
-
-      if (saving) {
-        dot.className = 'pulse-dot bg-sky-500';
-        text.textContent = `${base} • Saving…`;
-        return;
-      }
-      if (fileDirty) {
-        dot.className = 'inline-block w-2 h-2 rounded-full bg-amber-500';
-        text.textContent = `${base} • Unsaved changes`;
-        return;
-      }
-      dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500';
-      text.textContent = `${base} • Saved ${formatTime()}`;
+    function sortHazardsByTitle(hazards){
+      return hazards.slice().sort((a,b)=> (a.title||'').localeCompare(b.title||'', undefined, {sensitivity:'base'}));
     }
-    function setSaving(on) { saving = !!on; refreshStatus(); }
-    function markFileDirty() { fileDirty = true; refreshStatus(); }
-    function clearFileDirty() { fileDirty = false; refreshStatus(); }
+    function sortIcon(key){
+      if (EVENT_SORT.key !== key) return '';
+      return EVENT_SORT.dir === 'asc' ? ' ▲' : ' ▼';
+    }
+function handleHeaderClick(key){
+  if (EVENT_SORT.key === key){
+    EVENT_SORT.dir = EVENT_SORT.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    EVENT_SORT.key = key;
+    EVENT_SORT.dir = (key === 'score' ? 'desc' : 'asc');
+  }
+  resortAllTablesInPlace();
+  updateSortIndicators(document.getElementById('hazardsAccordion'));
+}
 
-    // ===== Stateless in-memory store (hazards + items) =====
-    let editingId = null;           // current event being edited
-    let editingHazardId = null;     // remembered hazard for starting new events
+
+
+    // ===== Store =====
+    let editingId = null;
+    let editingHazardId = null;
 
     const SessionStore = {
-      _items: [],      // hazardous events
-      _hazards: [],    // hazards
+      _items: [],
+      _hazards: [],
       _nextItemId: 1,
       _nextHazId: 1,
 
-      // Events
       add(rec){ const id=this._nextItemId++; const copy={...rec, id}; this._items.unshift(copy); return Promise.resolve({id}); },
       put(rec){
         if(!rec.id) return this.add(rec);
@@ -311,7 +538,6 @@
       get(id){ const it=this._items.find(x=>x.id===id); return Promise.resolve(it? JSON.parse(JSON.stringify(it)) : null ); },
       delete(id){ this._items = this._items.filter(x=>x.id!==id); return Promise.resolve(); },
 
-      // Hazards
       addHazard(title){ const id=this._nextHazId++; this._hazards.push({ id, title: String(title||'Untitled Hazard').trim() }); return Promise.resolve({id}); },
       putHazard(haz){ const i=this._hazards.findIndex(h=>h.id===haz.id); if(i>-1) this._hazards[i] = { id: haz.id, title: String(haz.title||'Untitled Hazard').trim() }; return Promise.resolve({id: haz.id}); },
       getAllHazards(){ return Promise.resolve(this._hazards.map(h=> ({ id:h.id, title:h.title }) )); },
@@ -321,7 +547,6 @@
         return Promise.resolve();
       },
 
-      // Import/Reset
       setAll(payload){
         const items = Array.isArray(payload?.items) ? payload.items : [];
         const hazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
@@ -337,16 +562,17 @@
     const clamp15 = (n)=> Math.max(1, Math.min(5, Number(n||0)));
     const round1 = (x)=> Math.round(x*10)/10;
     const enabledOf = (key)=> (el('en_'+key)?.checked ?? false);
-    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+    const escapeHtml = (s)=> String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 
     function mitigationReduction(eff){
       const e = clamp15(eff);
       if (CFG.mitigationSteps) { const v = CFG.mitigationSteps[e]; return typeof v === 'number' ? v : 0; }
       return ((e-1)/4) * 0.4;
     }
+
     function riskClass(score){
       const s = Number(score||0);
-      if (s > 25) return { label:'Very High', cls:'bg-rose-100 text-rose-800' };
+      if (s > 25) return { label:'Extremely High', cls:'bg-rose-100 text-rose-800' };
       if (s >= 21) return { label:'Very High', cls:'bg-rose-100 text-rose-800' };
       if (s >= 16) return { label:'High', cls:'bg-orange-100 text-orange-800' };
       if (s >= 11) return { label:'Moderate', cls:'bg-amber-100 text-amber-800' };
@@ -354,50 +580,54 @@
       return { label:'Very Low', cls:'bg-emerald-100 text-emerald-800' };
     }
 
-    // ===== File helpers (.litl) =====
-    function createLitlBlob(items, hazards){
-      const litl = {
-        litlVersion: 1,
-        appId: 'crr-v1',
-        title: 'Community Risk Register',
-        data: { items, hazards }
-      };
-      return new Blob([JSON.stringify(litl, null, 2)], { type: 'application/x-litl' });
+    // ===== File/save-state tracking =====
+    let currentFileHandle = null;
+    let currentFileName = null;
+    let fileDirty = false;
+    let saving = false;
+    let lastSavedSnapshot = '';
+
+    const statusDotEl  = () => el('statusDot');
+    const statusTextEl = () => el('statusText');
+
+    function formatTime(d=new Date()){
+      const hh = d.getHours().toString().padStart(2,'0');
+      const mm = d.getMinutes().toString().padStart(2,'0');
+      return `${hh}:${mm}`;
+    }
+    function refreshStatus(){
+      const dot = statusDotEl(); const text = statusTextEl();
+      if (!dot || !text) return;
+      let base = currentFileName ? `File: ${currentFileName}` : 'Unsaved';
+      if (saving) { dot.className = 'pulse-dot bg-sky-500'; text.textContent = `${base} • Saving…`; return; }
+      if (fileDirty) { dot.className = 'inline-block w-2 h-2 rounded-full bg-amber-500'; text.textContent = `${base} • Unsaved changes`; return; }
+      dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500'; text.textContent = `${base} • Saved ${formatTime()}`;
     }
     function canUsePicker(){ return !!(window.showOpenFilePicker && window.showSaveFilePicker); }
     function canSave(){ return !!(currentFileHandle && currentFileHandle.createWritable); }
-
-    function updateFileMenuState(){
-      el('menuSave').disabled = !canSave();
-      refreshStatus();
-    }
-
+    function updateFileMenuState(){ el('menuSave').disabled = !canSave(); refreshStatus(); }
     async function getDatasetSnapshotString(){
       const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
-      // Stable sort to avoid order jitter
       items.sort((a,b)=> (a.id||0)-(b.id||0));
       hazards.sort((a,b)=> (a.id||0)-(b.id||0));
       return JSON.stringify({ items, hazards });
     }
-    async function updateSavedSnapshot(){
-      lastSavedSnapshot = await getDatasetSnapshotString();
-      clearFileDirty();
-    }
-    async function recomputeDirtyAgainstSnapshot(){
-      const snap = await getDatasetSnapshotString();
-      fileDirty = (snap !== lastSavedSnapshot);
-      refreshStatus();
-    }
+    async function updateSavedSnapshot(){ lastSavedSnapshot = await getDatasetSnapshotString(); fileDirty = false; refreshStatus(); }
+    async function recomputeDirtyAgainstSnapshot(){ const snap = await getDatasetSnapshotString(); fileDirty = (snap !== lastSavedSnapshot); refreshStatus(); }
 
-    // ===== Guidance rendering/linking =====
+    // ===== Guidance UI =====
     function renderGuidanceHtml(id, lines){
       if (!Array.isArray(lines) || !lines.length) return '';
-      const items = lines.map((txt, i)=> `
-        <li class="flex gap-2 items-start" data-step="${i+1}">
-          <span class="inline-block w-5 text-right text-sky-800 font-semibold">${i+1}</span>
-          <span class="flex-1">${escapeHtml(txt)}</span>
-        </li>
-      `).join('');
+      const n = lines.length;
+      const items = lines.slice().reverse().map((txt, idx)=> {
+        const step = n - idx;
+        return `
+          <li class="flex gap-2 items-start" data-step="${step}">
+            <span class="inline-block w-5 text-right text-sky-800 font-semibold">${step}</span>
+            <span class="flex-1">${escapeHtml(txt)}</span>
+          </li>
+        `;
+      }).join('');
       return `
         <div id="g_${id}" class="rounded-xl bg-sky-50 text-sky-800 px-3 text-sm overflow-hidden transition-all duration-200 ease-out gpanel-collapsed border border-sky-200">
           <div class="font-medium mb-1">Scoring guide</div>
@@ -420,8 +650,76 @@
         }
       });
     }
+    
+    async function renderAllEventsTable(items){
+  const root = document.getElementById('hazardsAccordion');
+  const rowsSorted = sortEvents(items || []);
 
-    // ===== Build Category UI blocks =====
+  root.innerHTML = `
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm" id="allEventsTable" data-hazard="all">
+        <thead>
+          <tr class="text-left">
+            <th class="py-2 pr-4">
+              <button class="th-sort font-semibold" data-sort="title" type="button">Event Title</button>
+            </th>
+            <th class="py-2 pr-4">
+              <button class="th-sort font-semibold" data-sort="score" type="button">Risk Score</button>
+            </th>
+            <th class="py-2 pr-4">
+              <button class="th-sort font-semibold" data-sort="status" type="button">Status</button>
+            </th>
+            <th class="py-2 pr-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="tbody-fade">${buildEventRowsHTML(rowsSorted)}</tbody>
+      </table>
+    </div>
+  `;
+
+  const tbl = root.querySelector('#allEventsTable');
+  wireRowActions(tbl);
+
+  // Header clicks – same global sort, but resort just this table
+  root.querySelectorAll('.th-sort').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const key = btn.getAttribute('data-sort');
+      if (EVENT_SORT.key === key){
+        EVENT_SORT.dir = (EVENT_SORT.dir === 'asc' ? 'desc' : 'asc');
+      } else {
+        EVENT_SORT.key = key;
+        EVENT_SORT.dir = (key === 'score' ? 'desc' : 'asc');
+      }
+      updateSortIndicators(root);
+      resortAllEventsInPlace(); // fade/swap within this table
+    });
+  });
+
+  updateSortIndicators(root);
+  updateAriaSort(root);
+}
+
+async function resortAllEventsInPlace(){
+  const tbl = document.getElementById('allEventsTable');
+  if(!tbl) return;
+  const tbody = tbl.querySelector('tbody');
+  const items = await SessionStore.getAll();
+  const filtered = filterItemsBySearch(items);
+  const sorted = sortEvents(filtered);
+
+  tbody.style.opacity = '0';
+  setTimeout(()=>{
+    tbody.innerHTML = buildEventRowsHTML(sorted);
+    wireRowActions(tbl);
+    tbody.style.opacity = '1';
+  }, 180);
+
+  updateAriaSort(tbl.closest('#hazardsAccordion') || document);
+}
+
+
+    // ===== Build Category UI =====
     const catRoot = el('categories');
 
     function renderSubRow(sf){
@@ -460,13 +758,13 @@
               <output id="roll_${cat.key}" class="w-24 text-center font-semibold">3.0</output>
             </div>
 
-            <!-- Existing Mitigations -->
+            <!-- Mitigations -->
             <div class="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
               <div class="flex items-center justify-between mb-2">
                 <span class="font-medium text-emerald-900">Existing mitigations</span>
                 <div class="flex items-center gap-2">
                   <input id="mit_${cat.key}_input" type="text" placeholder="Add a mitigation…" class="px-2 py-1 text-sm border rounded-lg w-56" />
-                  <button id="mit_${cat.key}_add" class="px-2 py-1 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white" title="Add mitigation">+ Add</button>
+                  <button id="mit_${cat.key}_add" class="px-2 py-1 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">+ Add</button>
                 </div>
               </div>
               <div id="mit_${cat.key}_list" class="flex flex-wrap gap-2"></div>
@@ -484,13 +782,11 @@
               <div id="gap_${cat.key}_list" class="flex flex-wrap gap-2"></div>
             </div>
 
-            <!-- Effectiveness AFTER mitigations/gaps -->
             <div class="flex items-center justify-between gap-3 mt-2">
               <label class="w-56">Mitigation effectiveness (1-5)</label>
               <input id="eff_${cat.key}" type="number" min="1" max="5" value="1" class="w-20 text-center border rounded-lg py-1" />
             </div>
 
-            <!-- Current Score AFTER mitigations -->
             <div class="flex items-center justify-between gap-3 pt-2 border-t">
               <span class="w-56 font-medium">Current ${cat.title} Score</span>
               <output id="roll_adj_${cat.key}" class="w-24 text-center font-semibold">3.0</output>
@@ -499,7 +795,6 @@
         frag.appendChild(box);
       });
 
-      // Likelihood block
       const like = document.createElement('div');
       like.className = 'border rounded-2xl p-4';
       like.innerHTML = `
@@ -515,60 +810,10 @@
       frag.appendChild(like);
 
       catRoot.appendChild(frag);
-
-      // Apply initial visibility according to default enabled flags (all off by default)
       CFG.categories.forEach(c=> toggleSectionBody(c.key, enabledOf(c.key)) );
     }
 
-// Wire up Mitigation/Gaps "+ Add" buttons and Enter-to-add behaviour
-function wireMitigationAndGapAdds(){
-  CFG.categories.forEach(c=>{
-    // Mitigations
-    const mitAddBtn = el(`mit_${c.key}_add`);
-    const mitInp    = el(`mit_${c.key}_input`);
-    if (mitAddBtn) {
-      mitAddBtn.addEventListener('click', ()=>{
-        const t = (mitInp?.value || '').trim();
-        if (!t) return;
-        addTag('mit', c.key, t, '');
-        if (mitInp) mitInp.value = '';
-        recalc();
-      });
-    }
-    if (mitInp) {
-      mitInp.addEventListener('keydown', (ev)=>{
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          mitAddBtn?.click();
-        }
-      });
-    }
-
-    // Gaps
-    const gapAddBtn = el(`gap_${c.key}_add`);
-    const gapInp    = el(`gap_${c.key}_input`);
-    if (gapAddBtn) {
-      gapAddBtn.addEventListener('click', ()=>{
-        const t = (gapInp?.value || '').trim();
-        if (!t) return;
-        addTag('gap', c.key, t, '');
-        if (gapInp) gapInp.value = '';
-        recalc();
-      });
-    }
-    if (gapInp) {
-      gapInp.addEventListener('keydown', (ev)=>{
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          gapAddBtn?.click();
-        }
-      });
-    }
-  });
-}
-
-
-    // Summary pills
+    // ===== Summary pills =====
     const pillsRoot = el('summaryPills');
     function buildPillsDynamic(rollsAdj, perCatRisk, overall){
       const enabledCats = CFG.categories.filter(c=> enabledOf(c.key));
@@ -629,7 +874,7 @@ function wireMitigationAndGapAdds(){
       drawRadar(rollsAdj);
     }
 
-    // ===== Mitigations & Gaps chips with edit modal =====
+    // ===== Mitigations & Gaps chips =====
     function renderTagChip({type, key, title, details}){
       const wrap = document.createElement('span');
       const baseBg = (type==='mit'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800');
@@ -644,9 +889,10 @@ function wireMitigationAndGapAdds(){
         <span class="truncate max-w-[12rem]" title="${escapeHtml(title||'')}" data-role="text">${escapeHtml(title||'')}</span>
         <button type="button" class="rounded px-1 ${baseHover}" title="Remove" data-role="remove">×</button>
       `;
-      wrap.querySelector('[data-role="edit"]').addEventListener('click', ()=> openEditModal(wrap));
-      wrap.querySelector('[data-role="remove"]').addEventListener('click', ()=>{
-        if(confirm('Are you sure you want to remove this item?')) { wrap.remove(); recalc(); }
+      wrap.querySelector('[data-role="edit"]').addEventListener('click', (e)=>{ e.stopPropagation(); openEditModal(wrap); });
+      wrap.querySelector('[data-role="remove"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(confirm('Are you sure you want to remove this item?')) { wrap.remove(); recalc(); renderPlanGaps(); markDirty(); }
       });
       return wrap;
     }
@@ -655,7 +901,7 @@ function wireMitigationAndGapAdds(){
       if(!list) return;
       const chip = renderTagChip({type, key, title:String(title||'').trim(), details:String(details||'').trim()});
       list.appendChild(chip);
-      recalc();
+      recalc(); renderPlanGaps(); markDirtySoon();
     }
     function setTags(type, key, arr){
       const list = (type==='mit'? el(`mit_${key}_list`) : el(`gap_${key}_list`));
@@ -675,20 +921,19 @@ function wireMitigationAndGapAdds(){
         details: s.getAttribute('data-details') || ''
       }));
     }
-    function getMitigations(key){ return collectTags('mit', key); }
-    function getGaps(key){ return collectTags('gap', key); }
-    function setMitigations(key, arr){ setTags('mit', key, arr); }
-    function setGaps(key, arr){ setTags('gap', key, arr); }
+    const getMitigations = (key)=> collectTags('mit', key);
+    const getGaps = (key)=> collectTags('gap', key);
+    const setMitigations = (key, arr)=> setTags('mit', key, arr);
+    const setGaps = (key, arr)=> setTags('gap', key, arr);
 
-    // Shared edit modal
+    // ===== Chip edit modal =====
     function openEditModal(chipEl){
       const isMit = chipEl.getAttribute('data-type')==='mit';
       el('editModalTitle').textContent = isMit ? 'Edit Mitigation' : 'Edit Gap';
       el('editTitleInput').value = chipEl.getAttribute('data-title') || '';
       el('editDetailsInput').value = chipEl.getAttribute('data-details') || '';
       el('editModal').classList.remove('hidden'); el('editModal').classList.add('flex');
-
-      const onOk = ()=>{
+      el('editOkBtn').onclick = ()=>{
         const t = el('editTitleInput').value.trim();
         const d = el('editDetailsInput').value.trim();
         chipEl.setAttribute('data-title', t);
@@ -698,16 +943,15 @@ function wireMitigationAndGapAdds(){
         textNode.title = t || '(untitled)';
         el('editModal').classList.add('hidden'); el('editModal').classList.remove('flex');
         el('editOkBtn').onclick = null; el('editCancelBtn').onclick = null;
-        recalc();
+        recalc(); renderPlanGaps(); markDirtySoon();
       };
-      el('editOkBtn').onclick = onOk;
       el('editCancelBtn').onclick = ()=>{
         el('editModal').classList.add('hidden'); el('editModal').classList.remove('flex');
         el('editOkBtn').onclick = null; el('editCancelBtn').onclick = null;
       };
     }
 
-    // ===== Lightweight radar
+    // ===== Radar =====
     function drawRadar(rolls){
       const canvas = document.getElementById('radarChart');
       const ctx = canvas.getContext('2d');
@@ -801,8 +1045,39 @@ function wireMitigationAndGapAdds(){
       el('narrative').textContent = parts.join(' ');
     }
 
-    // ===== Editor collect/save =====
+    // ===== Import/Export (deep-link) =====
+    function toBase64Safe(str){ try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return btoa(str); } }
+    function fromBase64Safe(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return atob(b64); } }
+    function getAppUrl(){ const href=(location.href||'').split('#')[0]; return href; }
+
+    function importFromHash(){
+      if(!location.hash || !location.hash.startsWith('#import=')) return;
+      const enc = location.hash.slice('#import='.length);
+      try{
+        const json = fromBase64Safe(enc);
+        const data = JSON.parse(json);
+        const payload = {
+          hazards: Array.isArray(data?.hazards) ? data.hazards : [],
+          items: Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : [])
+        };
+        SessionStore.setAll(payload);
+        refreshHazardsAccordion();
+        recalc();
+        updateSavedSnapshot();
+        updateFileMenuState();
+        alert('Imported from link');
+      }catch(e){
+        console.error('Hash import failed', e);
+        alert('Failed to import from link');
+      } finally {
+        history.replaceState(null, document.title, location.pathname + location.search);
+      }
+    }
+
+    // ===== Collect/Save (event) =====
     function collectCurrent(){
+      const detailsHtml = el('descEditor').innerHTML || '';
+
       const inputs={}; CFG.categories.forEach(c=> c.sub.forEach(sf=> inputs[sf.id]=el(sf.id).value ));
       inputs[CFG.likelihoodId]=el(CFG.likelihoodId).value;
       const rolls={}; const adjs={}; const effs={}; const enabled={}; const risks={};
@@ -813,11 +1088,18 @@ function wireMitigationAndGapAdds(){
       const overall = round1((currentVals.length? Math.max(...currentVals):0) * like);
       const mitigations={}; CFG.categories.forEach(c=> mitigations[c.key]=getMitigations(c.key));
       const gaps={}; CFG.categories.forEach(c=> gaps[c.key]=getGaps(c.key));
+
+      const links = getLinks();
+      const actions = JSON.parse(JSON.stringify(planActions || []));
+
       return {
         ...(editingId!=null?{id:editingId}:{ }),
         hazardId: parseInt(el('hazardSel').value, 10) || null,
         title:(el('riskTitle').value||'Untitled Hazardous Event').trim(),
         status: el('statusSel').value || 'Tolerate',
+        detailsHtml,
+        links,
+        planActions: actions,
         framework7:{ inputs, rolls, adjs, risks, effs, like, overall, mitigations, gaps, enabled, mitigationSteps: CFG.mitigationSteps },
         narrative: el('narrative').textContent,
         createdAt: new Date().toISOString()
@@ -830,10 +1112,8 @@ function wireMitigationAndGapAdds(){
         editingId = id || editingId;
         refreshHazardsAccordion();
         switchToList();
-        // dataset changed -> mark dirty
-        await recomputeDirtyAgainstSnapshot(); // safer than markFileDirty in case identical
-        if (!fileDirty) markFileDirty();       // if equal by coincidence, still mark
-      }).catch(err=>{ console.error('Save failed', err); });
+        await recomputeDirtyAgainstSnapshot();
+      }).catch(err=>{ console.error('Save failed', err); alert('Save failed: '+(err?.message||err)); });
     }
 
     function loadEvent(id){
@@ -844,6 +1124,9 @@ function wireMitigationAndGapAdds(){
         el('riskTitle').value=r.title||'';
         el('statusSel').value = r.status || 'Tolerate';
 
+        el('descEditor').innerHTML = r.detailsHtml || '';
+        setLinks(Array.isArray(r.links)? r.links : []);
+
         const f=r.framework7||{}; const inputs=f.inputs||{}; const enabled=f.enabled||{};
         CFG.categories.forEach(c=> c.sub.forEach(sf=>{ if(el(sf.id)) el(sf.id).value = inputs[sf.id] ?? 3; }));
         if(el(CFG.likelihoodId)) el(CFG.likelihoodId).value = inputs[CFG.likelihoodId] ?? 3;
@@ -853,212 +1136,655 @@ function wireMitigationAndGapAdds(){
         const gaps=(f.gaps)||{}; CFG.categories.forEach(c=> setGaps(c.key, gaps[c.key]||[]));
         CFG.categories.forEach(c=>{ const chk = el('en_'+c.key); if(chk){ chk.checked = enabled[c.key]===true; toggleSectionBody(c.key, chk.checked); } });
 
-        // Update guidance highlight after loading
+        planActions = Array.isArray(r.planActions) ? r.planActions : [];
+        renderActionsList();
+        renderPlanGaps();
+
         CFG.categories.forEach(c=>{
           c.sub.forEach(sf=>{
             if (GUIDANCE[sf.id]) updateGuidanceHighlight(sf.id);
           });
         });
-
         recalc();
         el('narrative').textContent = r.narrative || el('narrative').textContent;
+        activateTab('details');
         switchToEditor();
       });
     }
 
-    // ===== Hazards list / actions =====
-    function hazardBlock(h, rows, isUncat=false){
-      const count = rows.length;
-      const subtitle = `${isUncat ? 'Uncategorised' : 'Hazard'} • ${count} event${count===1?'':'s'}`;
-      const hazIdAttr = (h.id===null ? 'null' : String(h.id));
-      const headerActions = isUncat
-        ? ''
-        : `<div class="flex gap-2">
-             <button data-action="haz-rename" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border">Rename</button>
-             <button data-action="haz-delete" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
-           </div>`;
-
-      const tableRows = (rows||[]).sort((a,b)=> (a.createdAt>b.createdAt?-1:1)).map(r=>{
-        const f=r.framework7||{}; const overall=Number(f.overall ?? 0);
-        const rc = riskClass(overall);
-        const status = r.status || 'Tolerate';
-        const badge = `<span class="inline-block text-xs ${rc.cls} px-2 py-0.5 rounded-full">${rc.label}</span>`;
-
-        return `<tr class="border-b hover:bg-slate-50 cursor-pointer" data-id="${r.id}">
-          <td class="py-2 pr-4">${escapeHtml(r.title||'')}</td>
-          <td class="py-2 pr-4"><div class="flex items-center gap-2"><span class="font-semibold">${overall.toFixed(1)}</span>${badge}</div></td>
-          <td class="py-2 pr-4">${escapeHtml(status)}</td>
-          <td class="py-2 pr-4">
-            <button data-action="edit" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Edit</button>
-            <button data-action="dup" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Duplicate</button>
-            <button data-action="del" data-id="${r.id}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
-          </td>
-        </tr>`;
-      }).join('');
-
-      return `
-      <details class="rounded-xl border">
-        <summary class="cursor-pointer select-none flex items-center justify-between p-4">
-          <div class="flex items-center gap-3">
-            <svg class="chev transition-transform" width="16" height="16" viewBox="0 0 20 20"><path fill="currentColor" d="M7 5l6 5-6 5V5z"/></svg>
-            <div>
-              <div class="font-semibold">${escapeHtml(h.title || 'Untitled Hazard')}</div>
-              <div class="text-sm text-slate-500">${subtitle}</div>
-            </div>
-          </div>
-          ${headerActions}
-        </summary>
-        <div class="p-4 pt-0">
-          <div class="overflow-x-auto mt-3">
-            <table class="min-w-full text-sm" data-hazard="${hazIdAttr}">
-              <thead>
-                <tr class="text-left">
-                  <th class="py-2 pr-4">Event Title</th>
-                  <th class="py-2 pr-4">Risk Score</th>
-                  <th class="py-2 pr-4">Status</th>
-                  <th class="py-2 pr-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>${tableRows || ''}</tbody>
-            </table>
-          </div>
+    // ===== Links helpers =====
+    function setLinks(arr){
+      const root = el('linksList');
+      root.innerHTML = '';
+      (arr||[]).forEach((lk, i)=> root.appendChild(renderLinkRow(lk, i)));
+    }
+    function getLinks(){
+      const root = el('linksList');
+      return Array.from(root.querySelectorAll('[data-index]')).map(row=>{
+        const title = row.querySelector('.font-medium')?.textContent ?? '';
+        const desc  = row.querySelector('.text-slate-600')?.textContent ?? '';
+        const url   = row.querySelector('a')?.getAttribute('href') ?? '';
+        return { title, description: desc, url };
+      });
+    }
+    function renderLinkRow(link, idx){
+      const row = document.createElement('div');
+      row.className = 'border rounded-xl p-3 bg-white flex items-start justify-between gap-3';
+      row.setAttribute('data-index', String(idx));
+      row.innerHTML = `
+        <div class="min-w-0">
+          <div class="font-medium truncate">${escapeHtml(link.title||'(untitled)')}</div>
+          <div class="text-sm text-slate-600 line-clamp-2">${escapeHtml(link.description||'')}</div>
+          <a href="${escapeHtml(link.url||'#')}" target="_blank" class="text-sm text-violet-700 underline break-all">${escapeHtml(link.url||'')}</a>
         </div>
-      </details>`;
+        <div class="flex gap-2 shrink-0">
+          <button class="px-2 py-1 rounded-lg border text-sm" data-role="edit">Edit</button>
+          <button class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700 text-sm" data-role="remove">Remove</button>
+        </div>
+      `;
+      row.querySelector('[data-role="edit"]').addEventListener('click', (e)=>{ e.stopPropagation(); openLinkModal('Edit Link', idx); markDirtySoon(); });
+      row.querySelector('[data-role="remove"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(!confirm('Remove this link?')) return;
+        const arr = getLinks();
+        arr.splice(idx,1);
+        setLinks(arr);
+        markDirtySoon();
+      });
+      return row;
+    }
+    function openLinkModal(title, idx=null){
+      el('linkModalTitle').textContent = title || 'Add Link';
+      const isEdit = (idx!==null && idx!==undefined);
+      const arr = getLinks();
+      const existing = isEdit ? arr[idx] : { title:'', description:'', url:'' };
+      el('linkTitleInput').value = existing.title || '';
+      el('linkDescInput').value  = existing.description || '';
+      el('linkUrlInput').value   = existing.url || '';
+      el('linkModal').classList.remove('hidden'); el('linkModal').classList.add('flex');
+
+      el('linkOkBtn').onclick = ()=>{
+        const t = el('linkTitleInput').value.trim();
+        const d = el('linkDescInput').value.trim();
+        const u = el('linkUrlInput').value.trim();
+        const link = { title:t, description:d, url:u };
+        if(isEdit) { const a = getLinks(); a[idx] = link; setLinks(a); }
+        else { const a = getLinks(); a.push(link); setLinks(a); }
+        closeLinkModal(); markDirtySoon();
+      };
+      el('linkCancelBtn').onclick = closeLinkModal;
+    }
+    function closeLinkModal(){
+      el('linkModal').classList.add('hidden'); el('linkModal').classList.remove('flex');
+      el('linkOkBtn').onclick = null; el('linkCancelBtn').onclick = null;
     }
 
-    function renderHazardsAccordion(hazards, items){
-      const root = el('hazardsAccordion');
-      if(!hazards.length && !items.length){
-        root.innerHTML = `<div class="text-slate-500">No Hazards or Hazardous Events yet. Use <strong>Add Hazard</strong> or <strong>Add Hazardous Event</strong> to begin.</div>`;
+    // ===== Plan: gaps + actions =====
+    let planActions = [];
+    let editingActionIndex = null;
+
+    function gapKey(catKey, title, details){
+      return `${catKey}|${(title||'').trim().toLowerCase()}|${(details||'').trim().toLowerCase()}`;
+    }
+    function getAllGapsFromUI(){
+      const out = [];
+      CFG.categories.forEach(c=>{
+        getGaps(c.key).forEach(g=>{
+          const key = gapKey(c.key, g.title, g.details);
+          out.push({ key, catKey: c.key, title: g.title||'', details: g.details||'' });
+        });
+      });
+      return out;
+    }
+    function getAddressedKeys(tempSelectedKeys = new Set()){
+      const keys = new Set();
+      planActions.forEach(a=> (a.gaps||[]).forEach(g=> keys.add(g.key)));
+      tempSelectedKeys.forEach(k=> keys.add(k));
+      return keys;
+    }
+
+function renderPlanGaps(tempSelectedKeys){
+  // Build a fast lookup for "addressed" gaps, including temporary selections from the Action modal
+  const addressedKeys = getAddressedKeys(tempSelectedKeys || new Set());
+
+  // Gather all gaps from UI with their Risk Group
+  const byGroup = new Map(); // catKey -> { cat, addressed:[], unaddressed:[] }
+  CFG.categories.forEach(cat => {
+    const gaps = getGaps(cat.key); // [{title, details}]
+    if (!gaps.length) return;
+
+    const bucket = { cat, addressed: [], unaddressed: [] };
+
+    gaps.forEach(g => {
+      const key = gapKey(cat.key, g.title, g.details);
+      const chip = `<span class="pill ${addressedKeys.has(key) ? 'pill-amber' : 'pill-red'}" title="${escapeHtml(g.details||'')}">${escapeHtml(g.title||'(gap)')}</span>`;
+      if (addressedKeys.has(key)) bucket.addressed.push(chip);
+      else bucket.unaddressed.push(chip);
+    });
+
+    byGroup.set(cat.key, bucket);
+  });
+
+  const root = el('plan_gaps_by_group');
+  if (!byGroup.size) {
+    root.innerHTML = `<div class="text-sm text-slate-500">No gaps defined yet. Add gaps in the Community Risk tab.</div>`;
+    return;
+  }
+
+  // Render each Risk Group row with three columns:
+  // [Risk Group] | [Addressed by Actions] | [Not Addressed Yet]
+  const rows = [];
+  byGroup.forEach(({ cat, addressed, unaddressed }) => {
+    rows.push(`
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-xl bg-white border">
+        <div class="md:col-span-1">
+          <div class="text-sm text-slate-500 mb-1">Risk Group</div>
+          <div class="font-medium">${escapeHtml(cat.title)}</div>
+        </div>
+        <div>
+          <div class="text-sm text-slate-600 mb-1">Addressed by Actions</div>
+          <div class="flex flex-wrap gap-2">${addressed.join('') || '<span class="text-slate-400 text-sm">None</span>'}</div>
+        </div>
+        <div>
+          <div class="text-sm text-slate-600 mb-1">Not Addressed Yet</div>
+          <div class="flex flex-wrap gap-2">${unaddressed.join('') || '<span class="text-slate-400 text-sm">None</span>'}</div>
+        </div>
+      </div>
+    `);
+  });
+
+  root.innerHTML = rows.join('');
+}
+
+
+    function renderActionsList(){
+      const root = el('actionsList');
+      if(!planActions.length){
+        root.innerHTML = `<div class="text-sm text-slate-500">No actions yet. Click <strong>+ Add Action</strong> to create one.</div>`;
         return;
       }
+      root.innerHTML = planActions.map((a,idx)=>{
+        const dateStr = [a.start||'', a.end||''].filter(Boolean).join(' → ');
+        const gapBadges = (a.gaps||[]).map(g=> `<span class="pill pill-amber">${escapeHtml(g.title||'(gap)')}</span>`).join(' ');
+        return `
+          <div class="border rounded-xl p-3 bg-white flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <div class="font-medium">${escapeHtml(a.title||'(untitled action)')}</div>
+              <div class="text-xs text-slate-500">${escapeHtml(dateStr||'')}</div>
+            </div>
+            <div class="text-sm text-slate-700 whitespace-pre-line">${escapeHtml(a.outline||'')}</div>
+            <div class="flex flex-wrap gap-2">${gapBadges}</div>
+            <div class="flex gap-2 justify-end">
+              <button class="px-2 py-1 rounded-lg border text-sm" data-role="edit" data-index="${idx}">Edit</button>
+              <button class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700 text-sm" data-role="del" data-index="${idx}">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
 
-      const byHaz = new Map();
-      hazards.forEach(h=> byHaz.set(h.id, []));
-      const uncategorised = [];
-      items.forEach(ev=>{
-        if(ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev);
-        else uncategorised.push(ev);
+      root.querySelectorAll('[data-role="edit"]').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{ e.stopPropagation(); openActionModal(Number(btn.getAttribute('data-index'))); markDirtySoon(); });
       });
-
-      const blocks = [];
-      hazards.forEach(h=>{ blocks.push(hazardBlock(h, byHaz.get(h.id) || [])); });
-      blocks.push(hazardBlock({ id:null, title:'Uncategorised' }, uncategorised, true));
-
-      root.innerHTML = blocks.join('');
-
-      root.querySelectorAll('table[data-hazard] tbody tr').forEach(tr=>{
-        tr.addEventListener('click',(e)=>{
-          const id=Number(tr.dataset.id);
-          const act=e.target?.dataset?.action;
-          if(act==='del'){ e.stopPropagation(); SessionStore.delete(id).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); markFileDirty(); }); return; }
-          if(act==='dup'){ e.stopPropagation(); duplicateEvent(id); return; }
-          loadEvent(id);
-        });
-      });
-      root.querySelectorAll('[data-action="haz-rename"]').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
-          if(hid===null){ alert('Cannot rename the Uncategorised group.'); return; }
-          SessionStore.getAllHazards().then(hzs=>{
-            const hz = hzs.find(z=> z.id===hid);
-            if(!hz) return;
-            const t = prompt('Rename hazard:', hz.title);
-            if(t && t.trim()){
-              SessionStore.putHazard({ id:hid, title:t.trim() }).then(async ()=>{
-                refreshHazardsAccordion();
-                await recomputeDirtyAgainstSnapshot(); markFileDirty();
-              });
-            }
-          });
-        });
-      });
-      root.querySelectorAll('[data-action="haz-delete"]').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
-          if(hid===null){ alert('Uncategorised cannot be deleted.'); return; }
-          if(!confirm('Delete this hazard? All associated events will be moved to Uncategorised.')) return;
-          SessionStore.deleteHazard(hid).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); markFileDirty(); });
+      root.querySelectorAll('[data-role="del"]').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const i = Number(btn.getAttribute('data-index'));
+          if(!confirm('Delete this action?')) return;
+          planActions.splice(i,1);
+          renderActionsList();
+          renderPlanGaps();
+          markDirtySoon();
         });
       });
     }
-    function refreshHazardsAccordion(){
-      Promise.all([SessionStore.getAllHazards(), SessionStore.getAll()]).then(([hazards, items])=>{
-        renderHazardsAccordion(hazards, items);
+
+    function openActionModal(index=null){
+      editingActionIndex = (index!=null ? index : null);
+      const allGaps = getAllGapsFromUI();
+
+      if(index==null){
+        el('actionModalTitle').textContent = 'Add Action';
+        el('actionTitleInput').value = '';
+        el('actionOutlineInput').value = '';
+        el('actionStartInput').value = '';
+        el('actionEndInput').value   = '';
+      } else {
+        const a = planActions[index];
+        el('actionModalTitle').textContent = 'Edit Action';
+        el('actionTitleInput').value = a.title || '';
+        el('actionOutlineInput').value = a.outline || '';
+        el('actionStartInput').value = a.start || '';
+        el('actionEndInput').value   = a.end   || '';
+      }
+
+      const selectedKeys = new Set(index==null ? [] : (planActions[index].gaps||[]).map(g=> g.key));
+      const picker = el('actionGapPicker');
+picker.innerHTML = allGaps.map(g=>{
+  const pressed = selectedKeys.has(g.key) ? 'true' : 'false';
+  // start visually muted; refreshPickerColours() will set amber/red as needed
+  return `<button type="button" class="gap-pill pill pill-muted"
+            aria-pressed="${pressed}"
+            data-key="${g.key}"
+            title="${escapeHtml(g.details||'')}">${escapeHtml(g.title||'(gap)')}</button>`;
+}).join('') || '<div class="text-sm text-slate-500">No gaps defined in Community Risk tab.</div>';
+
+      function currentTempSet(){
+        return new Set(Array.from(picker.querySelectorAll('.gap-pill[aria-pressed="true"]')).map(b=> b.getAttribute('data-key')));
+      }
+      function refreshPickerColours(){
+        const temp = currentTempSet();
+        const addressed = getAddressedKeys(temp);
+
+        picker.querySelectorAll('.gap-pill').forEach(btn=>{
+          const k = btn.getAttribute('data-key');
+          const on = btn.getAttribute('aria-pressed') === 'true';
+          btn.classList.remove('pill-red','pill-amber','pill-muted');
+          if(!on){
+            btn.classList.add('pill-muted');
+          } else {
+            if(addressed.has(k)) btn.classList.add('pill-amber');
+            else btn.classList.add('pill-red');
+          }
+        });
+
+        renderPlanGaps(temp);
+      }
+
+      picker.querySelectorAll('.gap-pill').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const now = btn.getAttribute('aria-pressed') === 'true';
+          btn.setAttribute('aria-pressed', now ? 'false' : 'true');
+          refreshPickerColours();
+        });
       });
+
+      refreshPickerColours();
+      el('actionModal').classList.remove('hidden'); el('actionModal').classList.add('flex');
+
+      el('actionOkBtn').onclick = ()=>{
+        const title   = el('actionTitleInput').value.trim();
+        const outline = el('actionOutlineInput').value.trim();
+        const start   = el('actionStartInput').value;
+        const end     = el('actionEndInput').value;
+
+        const temp = currentTempSet();
+        const selected = Array.from(temp).map(key=>{
+          const g = allGaps.find(x=> x.key===key);
+          return { key, catKey: g?.catKey || '', title: g?.title || '', details: g?.details || '' };
+        });
+
+        const actionObj = { id: (editingActionIndex!=null? planActions[editingActionIndex].id : Date.now()),
+                            title, outline, start, end, gaps: selected };
+
+        if(editingActionIndex==null) planActions.push(actionObj);
+        else planActions[editingActionIndex] = actionObj;
+
+        renderActionsList();
+        renderPlanGaps();
+        closeActionModal();
+        markDirtySoon();
+      };
+      el('actionCancelBtn').onclick = closeActionModal;
     }
+    function closeActionModal(){
+      el('actionModal').classList.add('hidden'); el('actionModal').classList.remove('flex');
+      el('actionOkBtn').onclick = null; el('actionCancelBtn').onclick = null;
+    }
+
+    // ===== Hazard list =====
+      
+      function buildEventRowsHTML(rows){
+  return rows.map(r=>{
+    const f = r.framework7 || {};
+    const overall = Number(f.overall ?? 0);
+    const rc = riskClass(overall);
+    const status = r.status || 'Tolerate';
+    const badge = `<span class="inline-block text-xs ${rc.cls} px-2 py-0.5 rounded-full">${rc.label}</span>`;
+    return `<tr class="border-b hover:bg-slate-50" data-id="${r.id}">
+      <td class="py-2 pr-4">${escapeHtml(r.title||'')}</td>
+      <td class="py-2 pr-4"><div class="flex items-center gap-2"><span class="font-semibold">${overall.toFixed(1)}</span>${badge}</div></td>
+      <td class="py-2 pr-4">${escapeHtml(status)}</td>
+      <td class="py-2 pr-4">
+        <button data-action="edit" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Edit</button>
+        <button data-action="dup"  data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Duplicate</button>
+        <button data-action="del"  data-id="${r.id}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+
+      function hazardBlock(h, rows, isUncat=false){
+        const count = rows.length;
+        const subtitle = `${isUncat ? 'Uncategorised' : 'Hazard'} • ${count} event${count===1?'':'s'}`;
+        const hazIdAttr = (h.id===null ? 'null' : String(h.id));
+        const headerActions = isUncat
+          ? ''
+          : `<div class="flex gap-2">
+               <button data-action="haz-rename" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border">Rename</button>
+               <button data-action="haz-delete" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
+             </div>`;
+
+        // 🔽 use global sort for event rows
+        const rowsSorted = sortEvents(rows || []);
+
+        const tableRows = buildEventRowsHTML(rowsSorted);
+
+        return `
+        <details class="rounded-xl border">
+          <summary class="cursor-pointer select-none flex items-center justify-between p-4">
+            <div class="flex items-center gap-3">
+              <svg class="chev transition-transform" width="16" height="16" viewBox="0 0 20 20"><path fill="currentColor" d="M7 5l6 5-6 5V5z"/></svg>
+              <div>
+                <div class="font-semibold">${escapeHtml(h.title || 'Untitled Hazard')}</div>
+                <div class="text-sm text-slate-500">${subtitle}</div>
+              </div>
+            </div>
+            ${headerActions}
+          </summary>
+          <div class="p-4 pt-0">
+            <div class="overflow-x-auto mt-3">
+              <table class="min-w-full text-sm" data-hazard="${hazIdAttr}">
+                <thead>
+                  <tr class="text-left">
+                    <th class="py-2 pr-4">
+                      <button class="th-sort font-semibold" data-sort="title" type="button">
+                        Event Title${sortIcon('title')}
+                      </button>
+                    </th>
+                    <th class="py-2 pr-4">
+                      <button class="th-sort font-semibold" data-sort="score" type="button">
+                        Risk Score${sortIcon('score')}
+                      </button>
+                    </th>
+                    <th class="py-2 pr-4">
+                      <button class="th-sort font-semibold" data-sort="status" type="button">
+                        Status${sortIcon('status')}
+                      </button>
+                    </th>
+                    <th class="py-2 pr-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>${tableRows || ''}</tbody>
+              </table>
+            </div>
+          </div>
+        </details>`;
+      }
+      
+      function updateAriaSort(root){
+  // reset all headers
+  root.querySelectorAll('table thead th').forEach(th=>{
+    th.setAttribute('aria-sort', 'none');
+  });
+
+  // set the active one based on EVENT_SORT
+  root.querySelectorAll('.th-sort').forEach(btn=>{
+    const key = btn.getAttribute('data-sort');
+    const th = btn.closest('th');
+    if(!th) return;
+    th.setAttribute(
+      'aria-sort',
+      EVENT_SORT.key === key
+        ? (EVENT_SORT.dir === 'asc' ? 'ascending' : 'descending')
+        : 'none'
+    );
+  });
+}
+
+      
+      function wireRowActions(root){
+  root.querySelectorAll('tbody tr').forEach(tr=>{
+    tr.addEventListener('click',(e)=>{
+      const actionBtn = e.target.closest('button');
+      if(actionBtn){
+        const act = actionBtn.dataset.action;
+        const id = Number(actionBtn.dataset.id);
+        if(act==='del'){ e.stopPropagation(); SessionStore.delete(id).then(async ()=>{ resortAllTablesInPlace(); await recomputeDirtyAgainstSnapshot(); }); return; }
+        if(act==='dup'){ e.stopPropagation(); duplicateEvent(id); return; }
+        if(act==='edit'){ e.stopPropagation(); loadEvent(id); return; }
+      } else {
+        const id=Number(tr.dataset.id); if(id) loadEvent(id);
+      }
+    });
+  });
+}
+
+
+      
+function renderHazardsAccordion(hazards, items){
+  const root = el('hazardsAccordion');
+  if(!hazards.length && !items.length){
+    root.innerHTML = `<div class="text-slate-500">No Hazards or Hazardous Events yet. Use <strong>Add Hazard</strong> or <strong>Add Hazardous Event</strong> to begin.</div>`;
+    updateAriaSort(root);
+    return;
+  }
+
+  // 🔽 hazards A→Z
+  const hazardsAZ = sortHazardsByTitle(hazards);
+
+  const byHaz = new Map();
+  hazardsAZ.forEach(h=> byHaz.set(h.id, []));
+  const uncategorised = [];
+  items.forEach(ev=>{
+    if(ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev);
+    else uncategorised.push(ev);
+  });
+
+  // Build blocks in A→Z, then Uncategorised last
+  const blocks = [];
+  hazardsAZ.forEach(h=>{ blocks.push(hazardBlock(h, byHaz.get(h.id) || [])); });
+  blocks.push(hazardBlock({ id:null, title:'Uncategorised' }, uncategorised, true));
+
+  root.innerHTML = blocks.join('');
+  updateSortIndicators(root);
+updateAriaSort(root);
+  
+  root.querySelectorAll('table[data-hazard]').forEach(tbl => wireRowActions(tbl));
+
+
+  // Row actions (unchanged)
+  root.querySelectorAll('table[data-hazard] tbody tr').forEach(tr=>{
+    tr.addEventListener('click',(e)=>{
+      const actionBtn = e.target.closest('button');
+      if(actionBtn){
+        const act = actionBtn.dataset.action;
+        const id = Number(actionBtn.dataset.id);
+        if(act==='del'){ e.stopPropagation(); SessionStore.delete(id).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); }); return; }
+        if(act==='dup'){ e.stopPropagation(); duplicateEvent(id); return; }
+        if(act==='edit'){ e.stopPropagation(); loadEvent(id); return; }
+      } else {
+        const id=Number(tr.dataset.id); if(id) loadEvent(id);
+      }
+    });
+  });
+
+  // 🔽 Header clicks apply global sort across ALL groups
+// Header clicks: global sort, in-place update, keep accordion open
+root.querySelectorAll('.th-sort').forEach(btn=>{
+  btn.addEventListener('click', (e)=>{
+    e.preventDefault();     // don't do anything "buttony"
+    e.stopPropagation();    // don't toggle the <summary>/<details>
+
+    const key = btn.getAttribute('data-sort');
+    if (EVENT_SORT.key === key){
+      EVENT_SORT.dir = (EVENT_SORT.dir === 'asc' ? 'desc' : 'asc');
+    } else {
+      EVENT_SORT.key = key;
+      EVENT_SORT.dir = (key === 'score' ? 'desc' : 'asc'); // your sensible default
+    }
+
+    updateSortIndicators(root);   // refresh header arrows across all tables
+    resortAllTablesInPlace();     // fade/swap rows only
+  });
+});
+
+
+  // Hazard header buttons (unchanged)
+  root.querySelectorAll('[data-action="haz-rename"]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
+      if(hid===null){ alert('Cannot rename the Uncategorised group.'); return; }
+      SessionStore.getAllHazards().then(hzs=>{
+        const hz = hzs.find(z=> z.id===hid);
+        if(!hz) return;
+        const t = prompt('Rename hazard:', hz.title);
+        if(t && t.trim()){
+          SessionStore.putHazard({ id:hid, title:t.trim() }).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); });
+        }
+      });
+    });
+  });
+  root.querySelectorAll('[data-action="haz-delete"]').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const hid = btn.dataset.id==='null' ? null : Number(btn.dataset.id);
+      if(hid===null){ alert('Uncategorised cannot be deleted.'); return; }
+      if(!confirm('Delete this hazard? All associated events will be moved to Uncategorised.')) return;
+      SessionStore.deleteHazard(hid).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); });
+    });
+  });
+}
+
+async function renderListView(){
+  const [hazards, items] = await Promise.all([SessionStore.getAllHazards(), SessionStore.getAll()]);
+  const filtered = filterItemsBySearch(items);
+
+  if (LIST_VIEW_MODE === 'grouped'){
+    renderHazardsAccordion(hazards, filtered);  // you already have this
+    updateSortIndicators(document.getElementById('hazardsAccordion'));
+    updateAriaSort(document.getElementById('hazardsAccordion'));
+  } else {
+    renderAllEventsTable(filtered);
+  }
+}
+
+function refreshHazardsAccordion(){ // keep name for compatibility with your calls
+  // delegate to the new smarter renderer
+  renderListView();
+}
+
     function duplicateEvent(id){
       SessionStore.get(id).then(r=>{
         if(!r) return;
         const { id:_omit, createdAt:__omit, ...rest } = r;
         const copy={ ...rest, title: r.title+' (copy)', createdAt: new Date().toISOString() };
         return SessionStore.add(copy);
-      }).then(async ()=>{
-        refreshHazardsAccordion();
-        await recomputeDirtyAgainstSnapshot(); markFileDirty();
-      }).catch(err=>{ console.error('Duplicate failed', err); });
+      }).then(async ()=>{ refreshHazardsAccordion(); await recomputeDirtyAgainstSnapshot(); })
+        .catch(err=>{ console.error('Duplicate failed', err); alert('Duplicate failed: '+(err?.message||err)); });
     }
 
-    // ===== Hazard select in editor =====
-    function populateHazardSelect(selectedId){
-      SessionStore.getAllHazards().then(hazards=>{
-        const sel = el('hazardSel');
-        const options = [
-          `<option value="">(Uncategorised)</option>`,
-          ...hazards.map(h=> `<option value="${h.id}">${escapeHtml(h.title)}</option>`)
-        ];
-        sel.innerHTML = options.join('');
-        if (selectedId!=null && hazards.some(h=> h.id===selectedId)) sel.value=String(selectedId);
-        else if (editingHazardId!=null && hazards.some(h=> h.id===editingHazardId)) sel.value=String(editingHazardId);
-        else sel.value='';
-      });
-    }
+    // ===== Hazard select =====
+function populateHazardSelect(selectedId){
+  SessionStore.getAllHazards().then(hazards=>{
+    const hazardsAZ = sortHazardsByTitle(hazards); // 👈 reuse your helper
+    const sel = el('hazardSel');
+    const options = [
+      `<option value="">(Uncategorised)</option>`,
+      ...hazardsAZ.map(h=> `<option value="${h.id}">${escapeHtml(h.title)}</option>`)
+    ];
+    sel.innerHTML = options.join('');
+    if (selectedId!=null && hazardsAZ.some(h=> h.id===selectedId)) sel.value=String(selectedId);
+    else if (editingHazardId!=null && hazardsAZ.some(h=> h.id===editingHazardId)) sel.value=String(editingHazardId);
+    else sel.value='';
+  });
+}
 
-    // ===== View switching & dirty tracking (editor form) =====
-    function getFormState(){
-      const s={ title: (el('riskTitle').value||'').trim(), status: el('statusSel').value||'Tolerate' };
-      CFG.categories.forEach(c=> c.sub.forEach(sf=> s[sf.id]=el(sf.id).value ));
-      s[CFG.likelihoodId]=el(CFG.likelihoodId).value;
-      CFG.categories.forEach(c=> s['eff_'+c.key] = el('eff_'+c.key).value );
-      CFG.categories.forEach(c=> s['en_'+c.key] = enabledOf(c.key) ? '1' : '0');
-      CFG.categories.forEach(c=>{
-        // flatten for quick compare
-        s['mit_'+c.key] = getMitigations(c.key).map(m=>m.title+'|'+m.details).join('||');
-        s['gap_'+c.key] = getGaps(c.key).map(g=>g.title+'|'+g.details).join('||');
-      });
-      return s;
-    }
-    let baseline=null;
-    function snapshot(){ baseline=getFormState(); }
-    function isDirty(){ if(!baseline) return false; return JSON.stringify(getFormState())!==JSON.stringify(baseline); }
 
-    function showModal(){ el('leaveModal').classList.remove('hidden'); el('leaveModal').classList.add('flex'); }
-    function hideModal(){ el('leaveModal').classList.add('hidden'); el('leaveModal').classList.remove('flex'); }
-    let pendingLeave=null;
-    el('keepEditingBtn').addEventListener('click', ()=>{ pendingLeave=null; hideModal(); });
-    el('discardChangesBtn').addEventListener('click', ()=>{ const fn=pendingLeave; pendingLeave=null; hideModal(); if(typeof fn==='function') fn(); });
-
+    // ===== View switching & tabs =====
     function switchToList(){
-      document.getElementById('listView').classList.remove('hidden');
-      document.getElementById('editorView').classList.add('hidden');
-      editingId=null; baseline=null;
+      el('listView').classList.remove('hidden');
+      el('editorView').classList.add('hidden');
+      editingId=null;
     }
     function switchToEditor(){
-      document.getElementById('listView').classList.add('hidden');
-      document.getElementById('editorView').classList.remove('hidden');
-      snapshot();
+      el('listView').classList.add('hidden');
+      el('editorView').classList.remove('hidden');
     }
-    function attemptLeave(next){ if(isDirty()){ pendingLeave=next; showModal(); } else { next(); } }
-
-    // ===== Toggle bodies =====
     function toggleSectionBody(key, on){
       const body = el('sec_'+key+'_body');
       if(!body) return;
-      if(on){ body.classList.remove('hidden'); }
-      else { body.classList.add('hidden'); }
+      body.classList.toggle('hidden', !on);
     }
 
-    // ===== .litl Open / Save / Save As / New =====
+    function activateTab(name){
+      const panels = {
+        details: el('tab_details'),
+        risk: el('tab_risk'),
+        plan: el('tab_plan')
+      };
+      const buttons = Array.from(document.querySelectorAll('[data-tab]'));
+      buttons.forEach(b=>{
+        if(b.dataset.tab===name){
+          b.classList.add('tab-btn-active'); b.classList.remove('tab-btn-inactive');
+        } else {
+          b.classList.remove('tab-btn-active'); b.classList.add('tab-btn-inactive');
+        }
+      });
+      Object.entries(panels).forEach(([k, panel])=>{
+        if(panel) panel.classList.toggle('active', k===name);
+      });
+
+      if(name==='plan'){
+        renderPlanGaps();
+        renderActionsList();
+      }
+    }
+    function wireTabs(){
+      document.querySelectorAll('[data-tab]').forEach(btn=>{
+        btn.addEventListener('click', ()=> activateTab(btn.dataset.tab));
+      });
+      activateTab('details');
+    }
+
+    // ===== RTE =====
+    function exec(cmd, val=null){ document.execCommand(cmd, false, val); el('descEditor').focus(); markDirtySoon(); }
+    function wireRte(){
+      const tb = document.querySelector('.rte-toolbar');
+      if(!tb) return;
+      tb.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button'); if(!btn) return;
+        if(btn.hasAttribute('data-cmd')) exec(btn.getAttribute('data-cmd'));
+        else if(btn.hasAttribute('data-link')){
+          const url = prompt('Enter URL (https://…):');
+          if(url) exec('createLink', url);
+        } else if(btn.hasAttribute('data-clear')) {
+          if(confirm('Clear description?')) { el('descEditor').innerHTML = ''; markDirtySoon(); }
+        }
+      });
+      el('descEditor').addEventListener('input', markDirtySoon);
+    }
+      
+      function updateSortIndicators(root){
+  root.querySelectorAll('table thead .th-sort').forEach(btn=>{
+    const key = btn.getAttribute('data-sort');
+    // cache the base label once (strip any existing arrow)
+    const base = btn.dataset.baseLabel || btn.textContent.replace(/[▲▼]\s*$/,'').trim();
+    btn.dataset.baseLabel = base;
+    let suffix = '';
+    if (EVENT_SORT.key === key) suffix = (EVENT_SORT.dir === 'asc' ? ' ▲' : ' ▼');
+    btn.textContent = base + suffix;
+  });
+}
+
+
+    // ===== Dirty helpers (mark dataset potentially unsaved) =====
+    let markDirtyTimer = null;
+    function markDirty(){ fileDirty = true; refreshStatus(); }
+    function markDirtySoon(){ clearTimeout(markDirtyTimer); markDirtyTimer = setTimeout(markDirty, 150); }
+
+    // ===== File helpers (.litl) =====
+    function createLitlBlob(items, hazards){
+      const litl = {
+        litlVersion: 1,
+        appId: 'crr-v1',
+        title: 'Community Risk Register',
+        data: { items, hazards }
+      };
+      return new Blob([JSON.stringify(litl, null, 2)], { type: 'application/x-litl' });
+    }
+
     async function openLitlWithPicker(){
       const [handle] = await window.showOpenFilePicker({
         multiple: false,
@@ -1077,10 +1803,9 @@ function wireMitigationAndGapAdds(){
       SessionStore.setAll(payload);
       refreshHazardsAccordion();
       switchToList();
-      await updateSavedSnapshot(); // now clean
+      await updateSavedSnapshot();
       updateFileMenuState();
     }
-
     function openLitlWithInput(file){
       const reader = new FileReader();
       reader.onload = async () => {
@@ -1094,7 +1819,7 @@ function wireMitigationAndGapAdds(){
           SessionStore.setAll(payload);
           refreshHazardsAccordion();
           switchToList();
-          await updateSavedSnapshot(); // loaded snapshot = clean
+          await updateSavedSnapshot();
           updateFileMenuState();
         } catch(err){
           console.error(err);
@@ -1103,10 +1828,9 @@ function wireMitigationAndGapAdds(){
       };
       reader.readAsText(file);
     }
-
     async function saveLitl(){
       try{
-        setSaving(true);
+        saving = true; refreshStatus();
         const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
         const blob = createLitlBlob(items, hazards);
 
@@ -1115,22 +1839,20 @@ function wireMitigationAndGapAdds(){
           await writable.write(blob);
           await writable.close();
           await updateSavedSnapshot();
-          setSaving(false);
+          saving = false; refreshStatus();
           return;
         }
-        // If we cannot save directly, route to Save As
         await saveLitlAs();
-        setSaving(false);
+        saving = false; refreshStatus();
       }catch(err){
         console.error('Save .litl failed', err);
-        setSaving(false);
-        // we avoid success popups; failure still logs
+        saving = false; refreshStatus();
+        alert('Save failed: '+(err?.message||err));
       }
     }
-
     async function saveLitlAs(){
       try{
-        setSaving(true);
+        saving = true; refreshStatus();
         const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
         const blob = createLitlBlob(items, hazards);
 
@@ -1146,37 +1868,36 @@ function wireMitigationAndGapAdds(){
           await writable.close();
           await updateSavedSnapshot();
           updateFileMenuState();
-          setSaving(false);
+          saving = false; refreshStatus();
           return;
         }
 
-        // Fallback: download (no handle)
+        // Fallback download
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = currentFileName || 'community_risk_register.litl';
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(()=> URL.revokeObjectURL(url), 1000);
-        // Keep currentFileHandle null; Save remains disabled in fallback
         if (!currentFileName) currentFileName = 'community_risk_register.litl';
         await updateSavedSnapshot();
         updateFileMenuState();
-        setSaving(false);
+        saving = false; refreshStatus();
       }catch(err){
         console.error('Save As .litl failed', err);
-        setSaving(false);
+        saving = false; refreshStatus();
+        alert('Save As failed: '+(err?.message||err));
       }
     }
-
     function newRegister(){
       SessionStore.setAll({ items: [], hazards: [] });
       currentFileHandle = null;
       currentFileName = null;
       refreshHazardsAccordion();
       switchToList();
-      // It's a new unsaved file. Snapshot resets; mark dirty so user is nudged to save.
       lastSavedSnapshot = '';
       fileDirty = true;
       updateFileMenuState();
+      refreshStatus();
     }
 
     // ===== File menu wiring & keyboard shortcuts =====
@@ -1192,21 +1913,15 @@ function wireMitigationAndGapAdds(){
       document.addEventListener('click', closeMenu);
       document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeMenu(); });
 
-      document.getElementById('menuNew').addEventListener('click', ()=> {
-        closeMenu();
-        attemptLeave(()=> newRegister());
-      });
+      document.getElementById('menuNew').addEventListener('click', ()=> { closeMenu(); newRegister(); });
       document.getElementById('menuOpen').addEventListener('click', async ()=> {
         closeMenu();
-        const openAction = async ()=>{
-          try{
-            if (window.showOpenFilePicker) await openLitlWithPicker();
-            else openInput.click();
-          }catch(err){
-            if (err?.name !== 'AbortError') { console.error(err); }
-          }
-        };
-        attemptLeave(openAction);
+        try{
+          if (window.showOpenFilePicker) await openLitlWithPicker();
+          else openInput.click();
+        }catch(err){
+          if (err?.name !== 'AbortError') { console.error(err); }
+        }
       });
       openInput.addEventListener('change', (e)=>{
         const f = e.target.files?.[0];
@@ -1214,64 +1929,51 @@ function wireMitigationAndGapAdds(){
         e.target.value='';
       });
 
-      document.getElementById('menuSave').addEventListener('click', async ()=>{
-        closeMenu();
-        await saveLitl();
-      });
-      document.getElementById('menuSaveAs').addEventListener('click', async ()=>{
-        closeMenu();
-        await saveLitlAs();
-      });
+      document.getElementById('menuSave').addEventListener('click', async ()=>{ closeMenu(); await saveLitl(); });
+      document.getElementById('menuSaveAs').addEventListener('click', async ()=>{ closeMenu(); await saveLitlAs(); });
 
       // Ctrl+S / Ctrl+O / Ctrl+N
       document.addEventListener('keydown', (e)=>{
         const ctrl = e.ctrlKey || e.metaKey;
         if(ctrl && e.key.toLowerCase()==='s'){ e.preventDefault(); saveLitl(); }
-        if(ctrl && e.key.toLowerCase()==='o'){ e.preventDefault(); attemptLeave(async ()=>{
-          if (window.showOpenFilePicker) await openLitlWithPicker(); else openInput.click();
-        }); }
-        if(ctrl && e.key.toLowerCase()==='n'){ e.preventDefault(); attemptLeave(()=> newRegister()); }
+        if(ctrl && e.key.toLowerCase()==='o'){ e.preventDefault(); if (window.showOpenFilePicker) openLitlWithPicker(); else openInput.click(); }
+        if(ctrl && e.key.toLowerCase()==='n'){ e.preventDefault(); newRegister(); }
       });
 
       updateFileMenuState();
     }
 
-    // ===== beforeunload guard (dataset or editor dirty) =====
-    window.addEventListener('beforeunload', (e)=>{
-      if (fileDirty || isDirty()) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    });
-
-    // ===== Hazard actions -> mark dataset dirty =====
-    // We already call recomputeDirtyAgainstSnapshot() + markFileDirty() in delete/dup/rename/save.
-    // Additionally, when adding a hazard:
-    function wireAddHazardButton(){
-      el('addHazardBtn').addEventListener('click', ()=>{
-        const t = prompt('New hazard title:');
-        if(!t || !t.trim()) return;
-        SessionStore.addHazard(t.trim()).then(async ()=>{
-          refreshHazardsAccordion();
-          await recomputeDirtyAgainstSnapshot(); markFileDirty();
-          populateHazardSelect(editingHazardId);
-        });
-      });
-    }
-
-    // ===== App buttons wiring =====
+    // ===== Wire page =====
     function wire(){
-      // Build UI
       buildCategoryBlocks();
-      wireMitigationAndGapAdds(); // <-- add this line
-      buildPillsDynamic({}, {}, 0);
+      wireTabs();
+      wireRte();
       wireFileMenu();
-      wireAddHazardButton();
 
-      // Inputs
+      // Gaps/Mitigations add
+      CFG.categories.forEach(c=>{
+        const mitAdd = el(`mit_${c.key}_add`);
+        const mitInp = el(`mit_${c.key}_input`);
+        if (mitAdd) {
+          mitAdd.addEventListener('click', ()=>{ const t = (mitInp?.value||'').trim(); if(!t) return; addTag('mit', c.key, t, ''); mitInp.value = ''; });
+        }
+        if (mitInp) mitInp.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); mitAdd?.click(); }});
+
+        const gapAdd = el(`gap_${c.key}_add`);
+        const gapInp = el(`gap_${c.key}_input`);
+        if (gapAdd) {
+          gapAdd.addEventListener('click', ()=>{ const t = (gapInp?.value||'').trim(); if(!t) return; addTag('gap', c.key, t, ''); gapInp.value = ''; });
+        }
+        if (gapInp) gapInp.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); gapAdd?.click(); }});
+
+        const chk = el('en_'+c.key);
+        if(chk) chk.addEventListener('change', ()=>{ toggleSectionBody(c.key, chk.checked); recalc(); renderPlanGaps(); markDirtySoon(); });
+      });
+
+      // Score inputs
       CFG.categories.forEach(c=> c.sub.forEach(sf=>{
         const inp = el(sf.id);
-        inp.addEventListener('input', recalc);
+        inp.addEventListener('input', ()=>{ recalc(); markDirtySoon(); });
         if (GUIDANCE[sf.id]) {
           const panelId = 'g_'+sf.id;
           inp.addEventListener('focus', ()=>{ showGuide(panelId); updateGuidanceHighlight(sf.id); });
@@ -1280,58 +1982,132 @@ function wireMitigationAndGapAdds(){
           inp.addEventListener('blur', ()=> hideGuide(panelId));
         }
       }));
-      el(CFG.likelihoodId).addEventListener('input', recalc);
-      CFG.categories.forEach(c=> el('eff_'+c.key).addEventListener('input', recalc));
-      el('statusSel').addEventListener('change', ()=>{}); // included in save payload
+      el(CFG.likelihoodId).addEventListener('input', ()=>{ recalc(); markDirtySoon(); });
+      CFG.categories.forEach(c=> el('eff_'+c.key).addEventListener('input', ()=>{ recalc(); markDirtySoon(); }));
 
-      // Include toggles
-      CFG.categories.forEach(c=>{
-        const chk = el('en_'+c.key);
-        if(chk){
-          chk.addEventListener('change', ()=>{ toggleSectionBody(c.key, chk.checked); recalc(); });
-        }
-      });
-
-      // Add Event (start fresh editor)
-      el('addEventBtn').addEventListener('click', ()=>{
-        attemptLeave(()=>{
-          editingId=null; el('riskTitle').value='';
-          el('statusSel').value='Tolerate';
-          CFG.categories.forEach(c=>{
-            c.sub.forEach(sf=> el(sf.id).value=3 );
-            if(el('eff_'+c.key)) el('eff_'+c.key).value=1;
-            setMitigations(c.key, []); setGaps(c.key, []);
-            const chk=el('en_'+c.key); if(chk){ chk.checked=false; toggleSectionBody(c.key, false); }
-          });
-          el(CFG.likelihoodId).value=3; recalc();
-          el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
+      // Buttons
+      el('addHazardBtn').addEventListener('click', ()=>{
+        const t = prompt('New hazard title:');
+        if(!t || !t.trim()) return;
+        SessionStore.addHazard(t.trim()).then(async ()=>{
+          refreshHazardsAccordion();
+          await recomputeDirtyAgainstSnapshot();
           populateHazardSelect(editingHazardId);
-          switchToEditor();
         });
       });
 
-      // Other editor buttons
-      el('generateBtn').addEventListener('click', genNarrative);
-      el('saveBtn').addEventListener('click', saveCurrent);
-      el('backToListBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
-      el('cancelBtn').addEventListener('click', ()=> attemptLeave(()=> switchToList()));
-      el('resetBtn').addEventListener('click', ()=>{
-        if(!confirm('Reset all fields for this event?')) return;
-        loadEvent(editingId);
+      el('addEventBtn').addEventListener('click', ()=>{
+        editingId=null; el('riskTitle').value=''; el('statusSel').value='Tolerate';
+        el('descEditor').innerHTML = ''; setLinks([]);
+        CFG.categories.forEach(c=>{
+          c.sub.forEach(sf=> el(sf.id).value=3 );
+          if(el('eff_'+c.key)) el('eff_'+c.key).value=1;
+          setMitigations(c.key, []); setGaps(c.key, []);
+          const chk=el('en_'+c.key); if(chk){ chk.checked=false; toggleSectionBody(c.key, false); }
+        });
+        el(CFG.likelihoodId).value=3; recalc();
+        el('narrative').textContent='Press Generate Narrative to produce a tailored summary.';
+        populateHazardSelect(editingHazardId);
+        planActions = []; renderActionsList(); renderPlanGaps();
+        activateTab('details');
+        switchToEditor();
       });
 
-      // Initial list
+      el('addActionBtn').addEventListener('click', ()=> openActionModal(null));
+
+      el('generateBtn').addEventListener('click', genNarrative);
+      el('saveBtn').addEventListener('click', async ()=>{ saveCurrent(); await recomputeDirtyAgainstSnapshot(); });
+      el('backToListBtn').addEventListener('click', ()=> switchToList());
+      el('cancelBtn').addEventListener('click', ()=> switchToList());
+      el('resetBtn').addEventListener('click', ()=>{ if(!editingId) return; loadEvent(editingId); });
+
+    // Open the "Add Link" modal from the Details tab
+    const addLinkBtn = el('addLinkBtn');
+    if (addLinkBtn) addLinkBtn.addEventListener('click', () => openLinkModal('Add Link'));
+      
+      // Tabs for list view
+document.querySelectorAll('[data-listtab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    LIST_VIEW_MODE = btn.getAttribute('data-listtab');   // 'grouped' | 'all'
+    updateListTabsUI();
+    renderListView();
+  });
+});
+
+// Search box — live filter; switches to "All" when typing
+const searchEl = document.getElementById('listSearch');
+const clearEl  = document.getElementById('listSearchClear');
+
+function applySearch(){
+  LIST_SEARCH = searchEl.value || '';
+  if (LIST_SEARCH.trim()){
+    LIST_VIEW_MODE = 'all';          // auto switch to All
+    updateListTabsUI();
+  }
+  renderListView();
+}
+
+searchEl.addEventListener('input', applySearch);
+clearEl.addEventListener('click', ()=>{
+  searchEl.value = '';
+  LIST_SEARCH = '';
+  applySearch();
+});
+
+
+
       refreshHazardsAccordion();
       switchToList();
       recalc();
-
-      // Initial status
       refreshStatus();
+      importFromHash();
     }
+    
+    async function resortAllTablesInPlace(){
+  const [hazards, items] = await Promise.all([SessionStore.getAllHazards(), SessionStore.getAll()]);
+  const hazardsAZ = sortHazardsByTitle(hazards);
 
-    // ===== Boot =====
+  // bucket events by hazard
+  const byHaz = new Map();
+  hazardsAZ.forEach(h=> byHaz.set(h.id, []));
+  const uncategorised = [];
+  items.forEach(ev=>{
+    if(ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev);
+    else uncategorised.push(ev);
+  });
+
+  // update each table body in place (no accordion rebuild)
+  document.querySelectorAll('#hazardsAccordion table[data-hazard]').forEach(tbl=>{
+    const hidAttr = tbl.getAttribute('data-hazard');
+    const rows = (hidAttr==='null')
+      ? uncategorised
+      : byHaz.get(Number(hidAttr)) || [];
+    const sorted = sortEvents(rows);
+    const tbody = tbl.querySelector('tbody');
+    if(!tbody) return;
+
+    // fade out → swap → fade in
+    tbody.classList.add('tbody-fade');
+    tbody.style.opacity = '0';
+    setTimeout(()=>{
+      tbody.innerHTML = buildEventRowsHTML(sorted);
+      wireRowActions(tbl);          // rebind row buttons in this tbody
+      tbody.style.opacity = '1';
+    }, 180);
+
+    // update aria-sort on headers
+    updateAriaSort(tbl.closest('#hazardsAccordion') || document);
+  });
+}
+
+
+    // Warn on unload if unsaved
+    window.addEventListener('beforeunload', (e)=>{
+      if (fileDirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // Boot
     wire();
-
   </script>
 </body>
 </html>
