@@ -21,13 +21,13 @@
     /* Chips */
     .chip { 
       transition: background .15s ease; 
-      border-radius: .75rem;          /* match buttons (rounded-xl) */
+      border-radius: .75rem;
       align-items: flex-start; 
     }
     .chip:hover { filter: brightness(0.97); }
     .chip [data-role="text"]{
-      white-space: normal;             /* allow wrapping (no ellipsis) */
-      word-break: break-word;          /* break long words/URLs */
+      white-space: normal;
+      word-break: break-word;
     }
 
     /* Radar canvas */
@@ -77,8 +77,8 @@
     .rte-editor ul,
     .rte-editor ol {
       list-style-position: outside;
-      margin: .25rem 0 .25rem 1.25rem;  /* space + indent */
-      padding-left: 1.25rem;             /* ensure bullets are visible */
+      margin: .25rem 0 .25rem 1.25rem;
+      padding-left: 1.25rem;
     }
 
     .rte-editor ul { list-style-type: disc; }
@@ -97,11 +97,11 @@
     /* Plan tab pills */
     .pill {
       padding: .25rem .5rem;
-      border-radius: .75rem;           /* match buttons (no more pill/9999px) */
+      border-radius: .75rem;
       font-size: .75rem;
       border: 1px solid transparent;
       line-height: 1.1;
-      white-space: normal;             /* wrap to multiple lines nicely */
+      white-space: normal;
       word-break: break-word;
       display: inline-block;
       vertical-align: top;
@@ -113,7 +113,7 @@
     /* Gap selector "buttons" in the modal use the same radius */
     .gap-pill {
       padding: .25rem .5rem;
-      border-radius: .75rem;           /* match buttons */
+      border-radius: .75rem;
       font-size: .75rem;
       cursor: pointer;
       line-height: 1.1;
@@ -129,6 +129,19 @@
 
     /* Screen-reader only utility (for radar data table) */
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+    /* ===== Gantt styles (Actions tab) ===== */
+    .gantt-wrap { position: relative; }
+    .gantt-grid { display: grid; grid-auto-rows: minmax(36px, auto); border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+    .gantt-header, .gantt-rows { display: contents; }
+    .gantt-cell { border-left: 1px solid #f1f5f9; border-top: 1px solid #e2e8f0; padding: .25rem .5rem; }
+    .gantt-cell.header { background: #f8fafc; font-size: .75rem; color: #475569; text-align: center; font-weight: 600; }
+    .gantt-title { padding: .25rem .5rem; font-size: .875rem; line-height: 1.2; }
+    .gantt-track { position: relative; min-height: 36px; }
+    .gantt-bar { position: absolute; height: 22px; top: 7px; border-radius: .5rem; background: rgba(99,102,241,.85); box-shadow: 0 1px 0 rgba(0,0,0,.05); }
+    .gantt-bar::after { content: ''; position: absolute; inset: 0; border: 1px solid rgba(49,46,129,.15); border-radius: .5rem; }
+    .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; pointer-events: none; }
+    .gantt-toolbar .row-btn { padding:.25rem .5rem; border-radius:.5rem; border:1px solid #cbd5e1; background:#fff; font-size:.75rem; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -244,7 +257,7 @@
             </div>
           </div>
 
-          <!-- Analysis tab (renamed from Community Risk) -->
+          <!-- Analysis tab -->
           <div id="tab_analysis" class="tab-panel space-y-4 pt-4" role="tabpanel" aria-labelledby="tab-btn-analysis">
             <div id="categories" class="flex flex-col gap-5"></div>
           </div>
@@ -435,45 +448,44 @@
   </div>
   
   <!-- Action modal -->
-<div id="actionModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="actionModalTitle" tabindex="-1">
-  <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
-    <h4 id="actionModalTitle" class="text-lg font-semibold mb-4">Add Action</h4>
-    <div class="space-y-3">
-      <div>
-        <label class="block text-sm font-medium mb-1" for="actionTitleInput">Title</label>
-        <input id="actionTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1" for="actionOwnerInput">Owner (optional)</label>
-        <input id="actionOwnerInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
-      </div>
-      <div class="grid grid-cols-2 gap-3">
+  <div id="actionModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="actionModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 id="actionModalTitle" class="text-lg font-semibold mb-4">Add Action</h4>
+      <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium mb-1" for="actionStatusInput">Status</label>
-          <select id="actionStatusInput" class="w-full px-3 py-2 rounded-xl border">
-            <option>Planned</option>
-            <option>In Progress</option>
-            <option>Blocked</option>
-            <option>Complete</option>
-          </select>
+          <label class="block text-sm font-medium mb-1" for="actionTitleInput">Title</label>
+          <input id="actionTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1" for="actionColorInput">Color (optional)</label>
-          <input id="actionColorInput" type="color" class="w-full h-[42px] px-2 py-2 rounded-xl border" />
+          <label class="block text-sm font-medium mb-1" for="actionOwnerInput">Owner (optional)</label>
+          <input id="actionOwnerInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1" for="actionStatusInput">Status</label>
+            <select id="actionStatusInput" class="w-full px-3 py-2 rounded-xl border">
+              <option>Planned</option>
+              <option>In Progress</option>
+              <option>Blocked</option>
+              <option>Complete</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1" for="actionColorInput">Color (optional)</label>
+            <input id="actionColorInput" type="color" class="w-full h-[42px] px-2 py-2 rounded-xl border" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="actionDescInput">Description (optional)</label>
+          <textarea id="actionDescInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
         </div>
       </div>
-      <div>
-        <label class="block text-sm font-medium mb-1" for="actionDescInput">Description (optional)</label>
-        <textarea id="actionDescInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="actionCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="actionOkBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Save</button>
       </div>
-    </div>
-    <div class="flex justify-end gap-2 mt-6">
-      <button id="actionCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
-      <button id="actionOkBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Save</button>
     </div>
   </div>
-</div>
-
 
   <script>
   (function () {
@@ -504,40 +516,36 @@
      * ============================== */
     const CFG = Object.freeze({
       categories: [
-        { key: 'people', title: 'People', enabled: false, sub: [
+        { key: 'individual', title: 'Individual', enabled: false, sub: [
           { id: 'p_phys',  label: 'Physical Harm' },
           { id: 'p_psych', label: 'Psychological Harm' },
           { id: 'p_fin',   label: 'Financial Harm' }
         ]},
-        { key: 'buildings', title: 'Buildings & Infrastructure', enabled: false, sub: [
-          { id: 'b_stock',     label: 'Premises (domestic, commercial, industrial, heritage, high-risk)' },
-          { id: 'b_cni',       label: 'Critical national infrastructure (energy, water, transport, comms)' },
-          { id: 'b_transport', label: 'Roads / rail / bridges / tunnels impacts' }
+        { key: 'societal', title: 'Societal', enabled: false, sub: [
+          { id: 's_service', label: 'Service Impact' },
+          { id: 's_partner', label: 'Partner Agency Impact' },
+          { id: 's_econ',    label: 'Economic Cost' },
+          { id: 's_rep',     label: 'Reputation/Political Impact' }
         ]},
-        { key: 'environment', title: 'Environment', enabled: false, sub: [
-          { id: 'e_nat',    label: 'Natural environment (wildfire, flood, storms, climate)' },
-          { id: 'e_poll',   label: 'Pollution (chemical, smoke, water contamination)' },
-          { id: 'e_biodiv', label: 'Biodiversity & heritage landscapes' }
+        { key: 'responder', title: 'Emergency Responder', enabled: false, sub: [
+          { id: 'er_people',  label: 'People' },
+          { id: 'er_process', label: 'Process' },
+          { id: 'er_plan',    label: 'Plan' }
         ]},
-        { key: 'ff', title: 'Firefighter & Responder Safety', enabled: false, sub: [
-          { id: 'f_haz',   label: 'Exposure to hazardous materials' },
-          { id: 'f_struct',label: 'Structural collapse / entrapment / fatigue' },
-          { id: 'f_psych', label: 'Psychological harm and wellbeing' }
+        { key: 'environmental', title: 'Environmental', enabled: false, sub: [
+          { id: 'env_air',        label: 'Air quality' },
+          { id: 'env_resources',  label: 'Use and disposal of resources' },
+          { id: 'env_landwater',  label: 'Land and Water Health' },
+          { id: 'env_climate',    label: 'Climate Change' }
         ]},
-        { key: 'community', title: 'Community & Society', enabled: false, sub: [
-          { id: 'c_trust',   label: 'Public expectations and trust in FRS' },
-          { id: 'c_cohesion',label: 'Social cohesion / impacts on vulnerable communities' },
-          { id: 'c_disrupt', label: 'Wider community impact of disruption / failure to respond' }
+        { key: 'community', title: 'Community', enabled: false, sub: [
+          { id: 'com_public_services', label: 'Public Services Impact' },
+          { id: 'com_cni',             label: 'Critical Infrastructure Impact' },
+          { id: 'com_employers',       label: 'Large Employer/Employment Impact' },
+          { id: 'com_wellbeing',       label: 'Well-being and Mental Health Impact' }
         ]},
-        { key: 'economy', title: 'Economy / Business Continuity', enabled: false, sub: [
-          { id: 'ec_local',  label: 'Local economy (businesses, jobs, tourism)' },
-          { id: 'ec_supply', label: 'Supply chains / critical services disruption' },
-          { id: 'ec_fin',    label: 'Financial harm to individuals / communities' }
-        ]},
-        { key: 'reputation', title: 'Reputation / Organisational Impact', enabled: false, sub: [
-          { id: 'r_conf',  label: 'Confidence in the service' },
-          { id: 'r_legal', label: 'Legal / statutory compliance' },
-          { id: 'r_multi', label: 'Impact on partner agencies / multi-agency reputation' }
+        { key: 'heritage', title: 'Heritage', enabled: false, sub: [
+          { id: 'her_heritage', label: 'Heritage' }
         ]}
       ],
       likelihoodId: 'o_likelihood',
@@ -855,7 +863,6 @@
 
       pillsRoot.innerHTML = html;
 
-      // SR-only table for radar values
       const rows = enabledCats.map(c => `<tr><th scope="row">${escapeHtml(c.title)}</th><td>${(perCatRisk[c.key] ?? 0).toFixed(1)}</td></tr>`).join('');
       el('radarA11y').innerHTML = `<h4>Risk profile data</h4><table><thead><tr><th>Category</th><th>Risk (adj × L)</th></tr></thead><tbody>${rows}</tbody></table><p>Overall: ${ov.toFixed(1)}</p>`;
     }
@@ -937,16 +944,17 @@
     }
 
     /* ============================== *
-     *  Calculations                  *
+     *  Calculations (max 6)          *
      * ============================== */
     function calcRoll(cat) {
-      const vals = cat.sub.map(sf => clamp15(el(sf.id).value));
+      const vals = cat.sub.map(sf => clamp15(el(sf.id).value)).filter(v => Number.isFinite(v));
       if (!vals.length) return 0;
       const sorted = vals.slice().sort((a, b) => b - a);
       const top = sorted[0];
       const others = sorted.slice(1);
-      const sumOthersTenths = others.reduce((a, b) => a + (b / 10), 0);
-      return round1(top + sumOthersTenths);
+      const avgOthers = others.length ? (others.reduce((a,b)=>a+b,0) / others.length) : 0;
+      const score = top + (avgOthers * 0.2);
+      return round1(Math.min(6, score));
     }
     function calcAdjusted(cat) {
       const base = calcRoll(cat);
@@ -1149,8 +1157,6 @@
       try {
         const json = fromBase64Safe(enc);
         const data = JSON.parse(json);
-        // shape + size guard
-        if (typeof data !== 'object') throw new Error('Bad payload');
         const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
         const hazards = Array.isArray(data?.hazards) ? data.hazards : [];
         const actions = Array.isArray(data?.actions) ? data.actions : [];
@@ -1213,18 +1219,15 @@
       const gaps = {};
       CFG.categories.forEach(c => { gaps[c.key] = getGaps(c.key); });
 
-      // Links + plan mitigations deep copy
       const links = getLinks();
       const planMitigationsCopy = JSON.parse(JSON.stringify(planMitigations || []));
 
-      // Safe field reads
       const hazardRaw = parseInt(el('hazardSel')?.value, 10);
       const hazardId = Number.isFinite(hazardRaw) ? hazardRaw : null;
       const title = (el('riskTitle')?.value || 'Untitled Hazardous Event').trim();
       const status = el('statusSel')?.value || 'Tolerate';
       const narrative = (el('narrative')?.textContent || '').trim();
 
-      // Timestamps: preserve createdAt on edit, add updatedAt
       const baseTimestamps = existing
         ? {
             createdAt: existing.createdAt || new Date().toISOString(),
@@ -1232,7 +1235,6 @@
           }
         : { createdAt: new Date().toISOString() };
 
-      // Final record
       return {
         ...(editingId != null ? { id: editingId } : {}),
         hazardId,
@@ -1460,7 +1462,7 @@
           return { key, catKey: g?.catKey || '', title: g?.title || '', details: g?.details || '' };
         });
 
-        const mitigationObj = { id: (editingMitigationIndex != null ? planMitigations[editingMitigationIndex].id : Date.now()), title, outline, start, end, gaps: selected };
+        const mitigationObj = { id: (editingMitigationIndex != null ? planMitigations[editingMitigationIndex].id : Date.now()), title, outline, start, end, gaps: selected, actionId: (editingMitigationIndex != null ? planMitigations[editingMitigationIndex].actionId || null : null) };
 
         if (editingMitigationIndex == null) planMitigations.push(mitigationObj);
         else planMitigations[editingMitigationIndex] = mitigationObj;
@@ -1674,134 +1676,271 @@
       activateTab('details');
     }
       
-      /* ============================== *
- *  Actions tab (list + modal)    *
- * ============================== */
-let ACTION_SORT = { key: 'updatedAt', dir: 'desc' };
+    /* ============================== *
+     *  Actions tab (grouped + Gantt) *
+     * ============================== */
+    let ACTIONS_TIMELINE_OFFSET = 0;        // months offset (0 = last month..+12 ahead)
+    const ACTIONS_MONTHS = 14;
 
-const actionComparators = {
-  title: (a,b)=> (a.title||'').localeCompare(b.title||'',undefined,{sensitivity:'base'}),
-  status:(a,b)=> (a.status||'').localeCompare(b.status||'',undefined,{sensitivity:'base'}),
-  owner: (a,b)=> (a.owner||'').localeCompare(b.owner||'',undefined,{sensitivity:'base'}),
-  updatedAt:(a,b)=> new Date(a.updatedAt||0) - new Date(b.updatedAt||0),
-};
-function sortActions(rows){
-  const cmp = actionComparators[ACTION_SORT.key] || actionComparators.updatedAt;
-  const out = rows.slice().sort(cmp);
-  return ACTION_SORT.dir === 'desc' ? out.reverse() : out;
-}
-function filterActionsBySearch(rows){
-  const q = normalize(LIST_SEARCH).trim();
-  if (!q) return rows;
-  return rows.filter(a => normalize(a.title).includes(q) || normalize(a.owner).includes(q) || normalize(a.status).includes(q));
-}
-function actionRowHTML(a){
-  const swatch = a.color ? `<span class="inline-block w-3 h-3 rounded" style="background:${a.color}"></span>` : '';
-  const when = a.updatedAt ? new Date(a.updatedAt).toLocaleString() : '';
-  return `<tr class="border-b hover:bg-slate-50" data-action-id="${a.id}">
-    <td class="py-2 pr-4"><div class="flex items-center gap-2">${swatch}<span class="font-medium">${escapeHtml(a.title||'')}</span></div></td>
-    <td class="py-2 pr-4">${escapeHtml(a.status||'')}</td>
-    <td class="py-2 pr-4">${escapeHtml(a.owner||'')}</td>
-    <td class="py-2 pr-4 text-slate-500">${escapeHtml(when)}</td>
-    <td class="py-2 pr-4">
-      <button class="px-2 py-1 rounded-lg border mr-1" data-action="action-edit" data-id="${a.id}">Edit</button>
-      <button class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700" data-action="action-del" data-id="${a.id}">Delete</button>
-    </td>
-  </tr>`;
-}
-async function renderActionsList(){
-  const root = el('hazardsAccordion');
-  const actions = await SessionStore.getAllActions();
-  const rows = sortActions(filterActionsBySearch(actions));
-  root.innerHTML = `
-    <div class="actions-toolbar">
-      <div class="text-sm text-slate-500">Actions • ${actions.length}</div>
-      <div class="flex items-center gap-2">
-        <button class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm" data-action="action-add">+ Add Action</button>
-      </div>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="min-w-full text-sm" id="actionsTable">
-        <thead>
-          <tr class="text-left">
-            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="title" type="button">Title</button></th>
-            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="status" type="button">Status</button></th>
-            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="owner" type="button">Owner</button></th>
-            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="updatedAt" type="button">Updated</button></th>
-            <th class="py-2 pr-4">Controls</th>
-          </tr>
-        </thead>
-        <tbody class="tbody-fade">
-          ${rows.map(actionRowHTML).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  updateActionSortIndicators();
-}
-function updateActionSortIndicators(){
-  const tbl = document.getElementById('actionsTable'); if (!tbl) return;
-  tbl.querySelectorAll('.th-sort').forEach(btn=>{
-    const key = btn.getAttribute('data-asort');
-    const base = btn.dataset.baseLabel || btn.textContent.replace(/[▲▼]\s*$/,'').trim();
-    btn.dataset.baseLabel = base;
-    let suffix = '';
-    if (ACTION_SORT.key === key) suffix = (ACTION_SORT.dir === 'asc' ? ' ▲' : ' ▼');
-    btn.textContent = base + suffix;
-    btn.closest('th')?.setAttribute('aria-sort',
-      ACTION_SORT.key===key ? (ACTION_SORT.dir==='asc'?'ascending':'descending') : 'none');
+    async function getAllMitigations() {
+      const items = await SessionStore.getAll();
+      const out = [];
+      items.forEach(it => {
+        (it.planMitigations || []).forEach(m => {
+          out.push({ itemId: it.id, eventTitle: it.title || '', mitigation: m });
+        });
+      });
+      return out;
+    }
+    async function setMitigationAction(itemId, mitigationId, actionId) {
+      const it = await SessionStore.get(itemId);
+      if (!it) return;
+      it.planMitigations = (it.planMitigations || []).map(m =>
+        m.id === mitigationId ? { ...m, actionId: actionId ?? null } : m
+      );
+      await SessionStore.put(it);
+    }
+
+    function startOfMonth(d){ const x = new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
+    function addMonths(d,n){ const x = new Date(d); x.setMonth(x.getMonth()+n); return x; }
+    function monthDiff(a,b){ return (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth()); }
+    function daysInMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
+    function parseDate(v){ if(!v) return null; const t = new Date(v); return Number.isNaN(t.getTime()) ? null : t; }
+    function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+
+    async function renderActionsBoard(){
+      const root = el('hazardsAccordion');
+      const [actions, items] = await Promise.all([SessionStore.getAllActions(), SessionStore.getAll()]);
+      const allMits = [];
+      items.forEach(it => (it.planMitigations||[]).forEach(m => allMits.push({ itemId: it.id, eventTitle: it.title || '', mitigation: m })));
+
+      const monthsBase = startOfMonth(new Date());
+      const windowStart = addMonths(monthsBase, ACTIONS_TIMELINE_OFFSET - 1); // last month
+      const months = Array.from({length: ACTIONS_MONTHS}, (_,i)=> addMonths(windowStart, i));
+
+      const headerMonthCells = months.map(dt =>
+        `<div class="gantt-cell header">${dt.toLocaleString(undefined,{month:'short'})}<br><span class="text-slate-400">${String(dt.getFullYear()).slice(2)}</span></div>`
+      ).join('');
+
+      function timelineBoundsText(){
+        const a = months[0].toLocaleString(undefined,{month:'short',year:'numeric'});
+        const b = months[months.length-1].toLocaleString(undefined,{month:'short',year:'numeric'});
+        return `${a} → ${b}`;
+      }
+
+      function totalDaysInRange(){
+        return months.reduce((acc,dt)=> acc + daysInMonth(dt),0);
+      }
+
+      function todayPercent(){
+        const today = new Date();
+        let daysFromStart = 0;
+        for (let i=0;i<months.length;i++){
+          const ms = months[i]; const me = addMonths(ms,1);
+          if (today < ms) break;
+          if (today >= me){ daysFromStart += daysInMonth(ms); continue; }
+          daysFromStart += Math.max(0, today.getDate() - 1);
+          break;
+        }
+        return (daysFromStart / Math.max(1,totalDaysInRange())) * 100;
+      }
+
+      function barStyleFor(m){
+        const s = parseDate(m.start);
+        const e = parseDate(m.end);
+        const startIdx = s ? clamp(monthDiff(windowStart, startOfMonth(s)), 0, months.length-1)
+                           : clamp(monthDiff(windowStart, startOfMonth(new Date())), 0, months.length-1);
+        const endIdx   = e ? clamp(monthDiff(windowStart, startOfMonth(e)), 0, months.length-1)
+                           : startIdx;
+
+        const startMonth = addMonths(windowStart, startIdx);
+        const endMonth   = addMonths(windowStart, endIdx);
+
+        let daysBefore = 0;
+        for (let i=0;i<startIdx;i++) daysBefore += daysInMonth(addMonths(windowStart,i));
+        if (s && s > startMonth) daysBefore += (s.getDate() - 1);
+
+        let daysSpan = 0;
+        if (startIdx === endIdx){
+          const base = s ? s.getDate() : 1;
+          const endd = e ? e.getDate() : base;
+          daysSpan = Math.max(1, endd - base + 1);
+        } else {
+          const dimStart = daysInMonth(startMonth);
+          daysSpan += s ? (dimStart - s.getDate() + 1) : Math.ceil(dimStart/2);
+          for (let i=startIdx+1;i<endIdx;i++) daysSpan += daysInMonth(addMonths(windowStart,i));
+          daysSpan += e ? e.getDate() : Math.ceil(daysInMonth(endMonth)/2);
+        }
+
+        const total = Math.max(1,totalDaysInRange());
+        const left = (daysBefore / total) * 100;
+        const width = (daysSpan / total) * 100;
+        return `left:${left.toFixed(3)}%;width:${Math.max(0.8,width).toFixed(3)}%;`;
+      }
+
+      function rowHtml(rec){
+        const m = rec.mitigation;
+        const title = escapeHtml(m.title || '(untitled mitigation)');
+        const dates = (m.start || m.end) ? `${escapeHtml(m.start||'?')} → ${escapeHtml(m.end||'?')}` : 'No dates';
+        const actionControls = m.actionId
+          ? `<button class="row-btn" data-detach data-item="${rec.itemId}" data-mid="${m.id}">Detach</button>`
+          : `<span class="text-xs text-slate-500">Attach to:</span>
+             <select class="border rounded px-2 py-1 text-sm" data-attach-select data-item="${rec.itemId}" data-mid="${m.id}">
+               <option value="">Choose…</option>
+               ${actions.map(a=> `<option value="${a.id}">${escapeHtml(a.title)}</option>`).join('')}
+             </select>
+             <button class="row-btn" data-attach data-item="${rec.itemId}" data-mid="${m.id}">Attach</button>`;
+
+        return `
+          <div class="gantt-title">
+            ${title}
+            <div class="text-xs text-slate-500">${escapeHtml(rec.eventTitle)} • ${dates}</div>
+            <div class="mt-1 flex items-center gap-2 flex-wrap">${actionControls}</div>
+          </div>
+          <div class="gantt-track" style="grid-column: 2 / -1;">
+            <div class="gantt-bar" style="${barStyleFor(m)}"></div>
+          </div>
+        `;
+      }
+
+      function boardFor(title, list, actionId = null){
+        const colStyle = `grid-template-columns: 18rem repeat(${months.length}, minmax(60px, 1fr))`;
+        const headerRow = `
+          <div class="gantt-title font-semibold">${escapeHtml(title)}</div>
+          ${headerMonthCells}
+        `;
+        const rows = list.length ? list.map(rowHtml).join('') : `
+          <div class="gantt-title text-slate-500">No mitigations</div>
+          ${months.map(()=>'<div class="gantt-cell"></div>').join('')}
+        `;
+        const controls = actionId ? `<div class="flex gap-2">
+            <button class="row-btn" data-action="action-edit" data-id="${actionId}">Edit</button>
+            <button class="row-btn" data-action="action-del" data-id="${actionId}">Delete</button>
+          </div>` : '';
+
+        return `
+          <details class="rounded-xl border">
+            <summary class="cursor-pointer select-none flex items-center justify-between p-4">
+              <div class="flex items-center gap-3">
+                <svg class="chev transition-transform" width="16" height="16" viewBox="0 0 20 20"><path fill="currentColor" d="M7 5l6 5-6 5V5z"/></svg>
+                <div>
+                  <div class="font-semibold">${escapeHtml(title)}</div>
+                  <div class="text-sm text-slate-500">${list.length} mitigation${list.length===1?'':'s'}</div>
+                </div>
+              </div>
+              ${controls}
+            </summary>
+            <div class="p-4 pt-0">
+              <div class="relative gantt-wrap">
+                <div class="gantt-grid" style="${colStyle}">
+                  <div class="gantt-header">${headerRow}</div>
+                  <div class="gantt-rows">${rows}</div>
+                </div>
+                <div class="today-line" data-today-line></div>
+              </div>
+            </div>
+          </details>
+        `;
+      }
+
+      const byAction = new Map();
+      actions.forEach(a => byAction.set(a.id, []));
+      const unassigned = [];
+      allMits.forEach(rec => {
+        const aid = rec.mitigation.actionId || null;
+        if (aid && byAction.has(aid)) byAction.get(aid).push(rec); else unassigned.push(rec);
+      });
+
+      const sortMit = (list)=> list.slice().sort((r1,r2)=>{
+        const a = parseDate(r1.mitigation.start)?.getTime() || 0;
+        const b = parseDate(r2.mitigation.start)?.getTime() || 0;
+        return a - b;
+      });
+
+      const blocks = [];
+      blocks.push(`
+        <div class="actions-toolbar gantt-toolbar">
+          <div class="flex items-center gap-2">
+            <button class="row-btn" id="actionsPrev" title="Back one month">←</button>
+            <div class="text-sm text-slate-500">Timeline: ${timelineBoundsText()}</div>
+            <button class="row-btn" id="actionsNext" title="Forward one month">→</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm" data-action="action-add">+ Add Action</button>
+          </div>
+        </div>
+      `);
+
+      blocks.push(boardFor('Not attached to Action', sortMit(unassigned), null));
+      const actionsAZ = actions.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'',undefined,{sensitivity:'base'}));
+      actionsAZ.forEach(a => blocks.push(boardFor(a.title, sortMit(byAction.get(a.id)||[]), a.id)));
+
+      root.innerHTML = blocks.join('');
+
+function positionTodayLines(){
+  const p = todayPercent() / 100; // 0..1 across the months window
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const titlePx = 18 * rem; // matches grid's first column: 18rem
+
+  root.querySelectorAll('.gantt-wrap').forEach(wrap => {
+    const line = wrap.querySelector('[data-today-line]');
+    if (!line) return;
+    const w = wrap.clientWidth;
+    const timelinePx = Math.max(0, w - titlePx);
+    const leftPx = titlePx + p * timelinePx;
+    line.style.left = leftPx + 'px';
   });
 }
 
-/* Action modal helpers */
-let editingActionId = null;
-function openActionModal(id=null){
-  editingActionId = id;
-  const modal = el('actionModal');
-  const title = el('actionModalTitle');
-  if (id==null){
-    title.textContent = 'Add Action';
-    el('actionTitleInput').value = '';
-    el('actionOwnerInput').value = '';
-    el('actionStatusInput').value = 'Planned';
-    el('actionColorInput').value = '#2563eb';
-    el('actionDescInput').value = '';
-  } else {
-    SessionStore.getAllActions().then(list=>{
-      const a = list.find(x=>x.id===id); if (!a) return;
-      title.textContent = 'Edit Action';
-      el('actionTitleInput').value = a.title||'';
-      el('actionOwnerInput').value = a.owner||'';
-      el('actionStatusInput').value = a.status||'Planned';
-      el('actionColorInput').value = a.color||'#2563eb';
-      el('actionDescInput').value = a.description||'';
-    });
-  }
-  el('actionOkBtn').onclick = async () => {
-    const rec = {
-      ...(editingActionId!=null ? { id: editingActionId } : {}),
-      title: el('actionTitleInput').value.trim() || 'Untitled Action',
-      owner: el('actionOwnerInput').value.trim(),
-      status: el('actionStatusInput').value,
-      color: el('actionColorInput').value,
-      description: el('actionDescInput').value.trim()
-    };
-    if (editingActionId==null) await SessionStore.addAction(rec);
-    else await SessionStore.putAction(rec);
-    closeModal(modal);
-    await recomputeDirtyAgainstSnapshot();
-    renderActionsList();
-  };
-  el('actionCancelBtn').onclick = () => closeModal(modal);
-  openModal(modal, '#actionTitleInput');
-}
+positionTodayLines();
 
+      el('actionsPrev')?.addEventListener('click', ()=> { ACTIONS_TIMELINE_OFFSET -= 1; renderActionsBoard(); });
+      el('actionsNext')?.addEventListener('click', ()=> { ACTIONS_TIMELINE_OFFSET += 1; renderActionsBoard(); });
+
+if (window.__actionsTodayResizeHandler) {
+  window.removeEventListener('resize', window.__actionsTodayResizeHandler);
+}
+window.__actionsTodayResizeHandler = makeDebounced(positionTodayLines, 120);
+window.addEventListener('resize', window.__actionsTodayResizeHandler);
+    }
+
+    async function renderActionsList(){
+      await renderActionsBoard();
+    }
+
+    (function extendListDelegationForActions(){
+      const listRoot = el('hazardsAccordion');
+      if (!listRoot) return;
+      listRoot.addEventListener('click', async (e) => {
+        const attachBtn = e.target.closest('button[data-attach]');
+        const detachBtn = e.target.closest('button[data-detach]');
+        if (attachBtn){
+          const itemId = Number(attachBtn.getAttribute('data-item'));
+          const mid = Number(attachBtn.getAttribute('data-mid'));
+          const sel = listRoot.querySelector(`select[data-attach-select][data-item="${itemId}"][data-mid="${mid}"]`);
+          const val = sel?.value ? Number(sel.value) : NaN;
+          if (!Number.isFinite(val)) { alert('Choose an action to attach to.'); return; }
+          await setMitigationAction(itemId, mid, val);
+          await recomputeDirtyAgainstSnapshot();
+          renderActionsBoard();
+          return;
+        }
+        if (detachBtn){
+          const itemId = Number(detachBtn.getAttribute('data-item'));
+          const mid = Number(detachBtn.getAttribute('data-mid'));
+          await setMitigationAction(itemId, mid, null);
+          await recomputeDirtyAgainstSnapshot();
+          renderActionsBoard();
+          return;
+        }
+      });
+    })();
 
     /* ============================== *
      *  RTE                           *
      * ============================== */
     function exec(cmd, val = null) { document.execCommand(cmd, false, val); el('descEditor').focus(); markDirtySoon(); }
 
-    // Plain-text paste to avoid unsafe HTML
     function sanitizePaste(e){
       e.preventDefault();
       const text = (e.clipboardData || window.clipboardData).getData('text/plain') || '';
@@ -2012,7 +2151,7 @@ function openActionModal(id=null){
             return;
           }
         
-        // Actions tab: main controls
+          // Actions tab: main controls
           if (btn?.dataset?.action === 'action-add') { openActionModal(null); return; }
           if (btn?.dataset?.action === 'action-edit') { openActionModal(Number(btn.dataset.id)); return; }
           if (btn?.dataset?.action === 'action-del') {
@@ -2055,17 +2194,6 @@ function openActionModal(id=null){
           if (LIST_VIEW_MODE === 'all') await resortAllEventsInPlace(); else await resortAllTablesInPlace();
           return;
         }
-    
-      const aSortBtn = e.target.closest('.th-sort[data-asort]');
-      if (aSortBtn) {
-        e.preventDefault();
-        const key = aSortBtn.getAttribute('data-asort');
-        if (ACTION_SORT.key === key) ACTION_SORT.dir = (ACTION_SORT.dir === 'asc' ? 'desc' : 'asc');
-        else { ACTION_SORT.key = key; ACTION_SORT.dir = (key === 'updatedAt' ? 'desc' : 'asc'); }
-        updateActionSortIndicators();
-        renderActionsList();
-        return;
-      }
     
         const tr = e.target.closest('tbody tr[data-id]');
         if (tr && !btn) loadEvent(Number(tr.dataset.id));
@@ -2271,6 +2399,63 @@ function openActionModal(id=null){
       editor.addEventListener('input', ensureTrailingParagraph);
       window.addEventListener('resize', () => { renderAllCharts(editor); ensureTrailingParagraph(); });
     }
+
+/* ===== Actions: modal editor (Add/Edit) ===== */
+let editingActionId = null;
+
+function openActionModal(id = null) {
+  editingActionId = id;
+  const modal = el('actionModal');
+  const title = el('actionModalTitle');
+
+  if (id == null) {
+    title.textContent = 'Add Action';
+    el('actionTitleInput').value = '';
+    el('actionOwnerInput').value = '';
+    el('actionStatusInput').value = 'Planned';
+    el('actionColorInput').value = '#2563eb';
+    el('actionDescInput').value = '';
+  } else {
+    SessionStore.getAllActions().then(list => {
+      const a = list.find(x => x.id === id);
+      if (!a) return;
+      title.textContent = 'Edit Action';
+      el('actionTitleInput').value = a.title || '';
+      el('actionOwnerInput').value = a.owner || '';
+      el('actionStatusInput').value = a.status || 'Planned';
+      el('actionColorInput').value = a.color || '#2563eb';
+      el('actionDescInput').value = a.description || '';
+    });
+  }
+
+  el('actionOkBtn').onclick = async () => {
+    const rec = {
+      ...(editingActionId != null ? { id: editingActionId } : {}),
+      title: el('actionTitleInput').value.trim() || 'Untitled Action',
+      owner: el('actionOwnerInput').value.trim(),
+      status: el('actionStatusInput').value,
+      color: el('actionColorInput').value,
+      description: el('actionDescInput').value.trim()
+    };
+
+    if (editingActionId == null) await SessionStore.addAction(rec);
+    else await SessionStore.putAction(rec);
+
+    closeModal(modal);
+    await recomputeDirtyAgainstSnapshot();
+
+    // Refresh the current view
+    if (LIST_VIEW_MODE === 'actions') {
+      await renderActionsList();
+    } else {
+      await renderListView();
+    }
+  };
+
+  el('actionCancelBtn').onclick = () => closeModal(modal);
+  openModal(modal, '#actionTitleInput');
+}
+
 
     /* ============================== *
      *  Wire page                     *
