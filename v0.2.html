@@ -1,0 +1,2391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community Risk Register - Single Page Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Number inputs */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* Toggle switch */
+    .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 9999px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 9999px; }
+    .switch input:checked + .slider { background-color: #16a34a; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
+
+    /* Chips */
+    .chip { 
+      transition: background .15s ease; 
+      border-radius: .75rem;          /* match buttons (rounded-xl) */
+      align-items: flex-start; 
+    }
+    .chip:hover { filter: brightness(0.97); }
+    .chip [data-role="text"]{
+      white-space: normal;             /* allow wrapping (no ellipsis) */
+      word-break: break-word;          /* break long words/URLs */
+    }
+
+    /* Radar canvas */
+    #radarChart { width: 100%; height: 300px; display: block; }
+
+    /* Accordion chevron */
+    details[open] summary .chev { transform: rotate(90deg); }
+
+    /* Modal backdrop */
+    .modal-backdrop { background-color: rgba(0,0,0,0.4); }
+
+    /* Guidance collapse */
+    .gpanel-collapsed { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; border-width: 0; overflow: hidden; }
+    .gpanel-expanded { max-height: 24rem; opacity: 1; padding-top: 0.5rem; padding-bottom: 0.5rem; margin-top: 0.5rem; border-width: 1px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: .25rem; border-bottom: 1px solid #e2e8f0; }
+    .tab-btn { padding: .5rem 1rem; border-radius: .5rem .5rem 0 0; border: 1px solid transparent; font-weight: 600; color: #475569; background: #f1f5f9; }
+    .tab-btn:hover { background: #e2e8f0; }
+    .tab-btn-active { color: #0f172a; background: #ffffff; border-color: #e2e8f0; border-bottom-color: transparent; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    
+    /* Actions tab */
+    .actions-toolbar { display:flex; gap:.5rem; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
+
+    /* accordion row button */
+    .row-btn { padding:.25rem .5rem; border-radius:.5rem; border:1px solid #cbd5e1; background:#fff; font-size:.75rem; }
+    .row-btn:hover { background:#f1f5f9; }
+
+    /* Table fade */
+    .tbody-fade { transition: opacity .18s ease; opacity: 1; }
+
+    /* Sort header button */
+    .th-sort { background: transparent; border: 0; padding: 0; cursor: pointer; }
+    .th-sort:focus-visible { outline: 2px solid #94a3b8; outline-offset: 2px; }
+
+    /* RTE */
+    .rte-box { border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff; }
+    .rte-toolbar { display: flex; gap: .5rem; flex-wrap: wrap; padding: .5rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-top-left-radius: .75rem; border-top-right-radius: .75rem; }
+    .rte-toolbar button { padding: .25rem .5rem; border-radius: .5rem; border: 1px solid #cbd5e1; background: #fff; font-size: .875rem; color: #334155; }
+    .rte-toolbar button:hover { background: #f1f5f9; }
+    .rte-editor { min-height: 180px; padding: .75rem; outline: none; border-bottom-left-radius: .75rem; border-bottom-right-radius: .75rem; }
+    .rte-editor:focus { box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
+    .rte-chart { display:block; width:100%; max-width:100%; background:#fff; border:1px solid #e2e8f0; border-radius:.75rem; padding:.75rem; margin:.5rem 0; }
+    .rte-chart canvas { display:block; width:100% !important; }
+    .rte-editor ul,
+    .rte-editor ol {
+      list-style-position: outside;
+      margin: .25rem 0 .25rem 1.25rem;  /* space + indent */
+      padding-left: 1.25rem;             /* ensure bullets are visible */
+    }
+
+    .rte-editor ul { list-style-type: disc; }
+    .rte-editor ul ul { list-style-type: circle; }
+    .rte-editor ul ul ul { list-style-type: square; }
+
+    .rte-editor ol { list-style-type: decimal; }
+    .rte-editor ol ol { list-style-type: lower-alpha; }
+    .rte-editor ol ol ol { list-style-type: lower-roman; }
+
+    .rte-editor li { margin: .125rem 0; }
+
+    /* Sticky Aside on lg+ */
+    @media (min-width: 1024px){ .sticky-aside { position: sticky; top: 1rem; align-self: flex-start; } }
+
+    /* Plan tab pills */
+    .pill {
+      padding: .25rem .5rem;
+      border-radius: .75rem;           /* match buttons (no more pill/9999px) */
+      font-size: .75rem;
+      border: 1px solid transparent;
+      line-height: 1.1;
+      white-space: normal;             /* wrap to multiple lines nicely */
+      word-break: break-word;
+      display: inline-block;
+      vertical-align: top;
+    }
+    .pill-red { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .pill-amber { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .pill-muted { background: transparent; color: #475569; border-color: #cbd5e1; opacity: .75; }
+    
+    /* Gap selector "buttons" in the modal use the same radius */
+    .gap-pill {
+      padding: .25rem .5rem;
+      border-radius: .75rem;           /* match buttons */
+      font-size: .75rem;
+      cursor: pointer;
+      line-height: 1.1;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .gap-pill:focus-visible { outline: 2px solid #94a3b8; outline-offset: 2px; }
+
+    /* File menu + status */
+    .menu-open .menu-panel { display: block; }
+    .pulse-dot { width:.5rem; height:.5rem; border-radius:9999px; display:inline-block; margin-right:.5rem; animation:pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%{transform:scale(1);opacity:1} 50%{transform:scale(.6);opacity:.6} 100%{transform:scale(1);opacity:1} }
+
+    /* Screen-reader only utility (for radar data table) */
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <!-- ===== Top menu ===== -->
+  <nav class="bg-white border-b shadow-sm">
+    <div class="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between">
+      <div class="relative" id="fileMenuRoot">
+        <button id="fileMenuBtn" class="px-3 py-1.5 rounded-lg hover:bg-slate-100 font-medium">File ▾</button>
+        <div id="fileMenuPanel" class="menu-panel hidden absolute z-50 mt-1 w-56 bg-white border rounded-xl shadow-lg overflow-hidden">
+          <button id="menuNew" class="w-full text-left px-4 py-2 hover:bg-slate-50">New</button>
+          <button id="menuOpen" class="w-full text-left px-4 py-2 hover:bg-slate-50">Open… (.litl)</button>
+          <button id="menuSave" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Save</button>
+          <button id="menuSaveAs" class="w-full text-left px-4 py-2 hover:bg-slate-50">Save As…</button>
+        </div>
+      </div>
+      <div id="fileStatus" class="text-sm text-slate-500 flex items-center gap-2" aria-live="polite">
+        <span id="statusDot" class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
+        <span id="statusText">Unsaved</span>
+      </div>
+    </div>
+    <input id="openLitlInput" type="file" accept=".litl,application/x-litl" class="hidden" />
+  </nav>
+
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold">Community Risk Register - Demo</h1>
+      <p class="text-slate-600 mb-3">
+        Manage <strong>Hazards</strong> and their <strong>Hazardous Events</strong>. Enter scores (1–5) across the seven NFCC-aligned dimensions. We'll roll them up and auto-generate a narrative.
+      </p>
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="addHazardBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium">Add Hazard</button>
+        <button id="addEventBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add Hazardous Event</button>
+      </div>
+    </header>
+
+    <!-- ===== List View ===== -->
+    <section id="listView" class="mb-6">
+      <div class="bg-white rounded-2xl shadow p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xl font-semibold">Hazards</h2>
+          <div class="text-sm text-slate-500">Expand a hazard to view and edit its hazardous events</div>
+        </div>
+
+        <!-- List view tabs + search -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="tabs" id="listTabs" role="tablist" aria-label="List view mode">
+            <button class="tab-btn tab-btn-active" role="tab" aria-selected="true" data-listtab="grouped">Grouped by Hazard</button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-listtab="all">All Events</button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-listtab="actions">Actions</button>
+          </div>
+          <div class="relative">
+            <label for="listSearch" class="sr-only">Search event titles</label>
+            <input id="listSearch" type="search" placeholder="Search event titles…" class="px-3 py-2 rounded-xl border w-64" />
+            <button id="listSearchClear" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search" title="Clear search" type="button">×</button>
+          </div>
+        </div>
+
+        <div id="hazardsAccordion" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- ===== Editor View ===== -->
+    <div id="editorView" class="grid lg:grid-cols-3 gap-6 hidden">
+      <section class="lg:col-span-2">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-6">
+          <!-- Title + Hazard selection -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-3">
+              <label for="riskTitle" class="font-semibold w-40">Event Title</label>
+              <input id="riskTitle" type="text" placeholder="e.g., Dwelling Fire, RTC, Flooding" class="flex-1 px-3 py-2 rounded-xl border" />
+            </div>
+            <div class="flex items-center gap-3">
+              <label for="hazardSel" class="font-semibold w-40">Associated Hazard</label>
+              <select id="hazardSel" class="px-3 py-2 rounded-xl border min-w-[16rem]"></select>
+              <button id="cancelBtn" class="ml-auto px-3 py-2 rounded-xl border">Cancel</button>
+              <button id="backToListBtn" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Back to List</button>
+              <button id="resetBtn" class="px-3 py-2 rounded-xl border">Reset</button>
+            </div>
+          </div>
+
+          <!-- Editor tabs -->
+          <div class="tabs" id="editorTabs" role="tablist" aria-label="Editor sections">
+            <button class="tab-btn tab-btn-active" data-tab="details" role="tab" id="tab-btn-details" aria-controls="tab_details" aria-selected="true">Details</button>
+            <button class="tab-btn" data-tab="analysis" role="tab" id="tab-btn-analysis" aria-controls="tab_analysis" aria-selected="false">Analysis</button>
+            <button class="tab-btn" data-tab="plan" role="tab" id="tab-btn-plan" aria-controls="tab_plan" aria-selected="false">Plan</button>
+          </div>
+
+          <!-- Details tab -->
+          <div id="tab_details" class="tab-panel active space-y-4 pt-4" role="tabpanel" aria-labelledby="tab-btn-details">
+            <div class="border rounded-2xl p-4">
+              <label class="block font-semibold mb-2">Description</label>
+              <div class="rte-box">
+                <div class="rte-toolbar">
+                  <button type="button" data-cmd="bold" aria-label="Bold"><strong>Bold</strong></button>
+                  <button type="button" data-cmd="italic" aria-label="Italic"><em>Italic</em></button>
+                  <button type="button" data-cmd="insertUnorderedList" aria-label="Bulleted list">Bulleted</button>
+                  <button type="button" data-cmd="insertOrderedList" aria-label="Numbered list">Numbered</button>
+                  <button type="button" data-link aria-label="Insert link">Link</button>
+                  <button type="button" data-chart aria-label="Insert chart">Chart</button>
+                  <button type="button" data-clear aria-label="Clear editor">Clear</button>
+                </div>
+                <div id="descEditor" class="rte-editor" contenteditable="true" spellcheck="true"></div>
+              </div>
+            </div>
+
+            <!-- Links -->
+            <div class="border rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-semibold">Associated Links</label>
+                <button id="addLinkBtn" class="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm">+ Add Link</button>
+              </div>
+              <div id="linksList" class="mt-2 space-y-2"></div>
+            </div>
+          </div>
+
+          <!-- Analysis tab (renamed from Community Risk) -->
+          <div id="tab_analysis" class="tab-panel space-y-4 pt-4" role="tabpanel" aria-labelledby="tab-btn-analysis">
+            <div id="categories" class="flex flex-col gap-5"></div>
+          </div>
+
+          <!-- Plan tab -->
+          <div id="tab_plan" class="tab-panel pt-4 space-y-4" role="tabpanel" aria-labelledby="tab-btn-plan">
+            <div class="border rounded-2xl p-4">
+              <h3 class="text-lg font-semibold mb-2">Gaps Overview</h3>
+              <div id="plan_gaps_by_group" class="space-y-3"></div>
+            </div>
+            <div class="border rounded-2xl p-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Mitigations</h3>
+                <button id="addMitigationBtn" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm">+ Add Mitigation</button>
+              </div>
+              <div id="mitigationsList" class="mt-3 space-y-3"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="space-y-6 sticky-aside">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-3">
+          <h3 class="text-lg font-semibold">Controls</h3>
+          <div class="flex items-center gap-3">
+            <label for="statusSel" class="font-medium w-24">Status</label>
+            <select id="statusSel" class="px-3 py-2 rounded-xl border min-w-[12rem]">
+              <option value="Tolerate">Tolerate</option>
+              <option value="Treat">Treat</option>
+              <option value="Transfer">Transfer</option>
+              <option value="Terminate">Terminate</option>
+            </select>
+          </div>
+          <div class="pt-2 border-t">
+            <div class="flex flex-wrap gap-2">
+              <button id="generateBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Generate Narrative</button>
+              <button id="saveBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Save Event</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-2">Summary</h3>
+          <div class="grid grid-cols-2 gap-3 text-sm" id="summaryPills"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-3">Risk Profile</h3>
+          <canvas id="radarChart" height="300" aria-hidden="true"></canvas>
+          <div id="radarA11y" class="sr-only" aria-live="polite"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-2">Auto-Narrative</h3>
+          <p id="narrative" class="text-slate-700 leading-relaxed">Press <em>Generate Narrative</em> to produce a tailored summary.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ===== Modals ===== -->
+  <!-- Links modal -->
+  <div id="linkModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="linkModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 class="text-lg font-semibold mb-4" id="linkModalTitle">Add Link</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="linkTitleInput">Title</label>
+          <input id="linkTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="linkDescInput">Description</label>
+          <textarea id="linkDescInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="linkUrlInput">URL</label>
+          <input id="linkUrlInput" type="url" placeholder="https://…" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="linkCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="linkOkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit chip modal -->
+  <div id="editModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 id="editModalTitle" class="text-lg font-semibold mb-4">Edit</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="editTitleInput">Title</label>
+          <input id="editTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="editDetailsInput">Details</label>
+          <textarea id="editDetailsInput" rows="4" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="editCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="editOkBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mitigation (Plan) modal -->
+  <div id="mitigationModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="mitigationModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6">
+      <h4 id="mitigationModalTitle" class="text-lg font-semibold mb-4">Add Mitigation</h4>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="mitigationTitleInput">Title</label>
+          <input id="mitigationTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1" for="mitigationStartInput">Start</label>
+            <input id="mitigationStartInput" type="date" class="w-full px-3 py-2 rounded-xl border" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1" for="mitigationEndInput">End</label>
+            <input id="mitigationEndInput" type="date" class="w-full px-3 py-2 rounded-xl border" />
+          </div>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1" for="mitigationOutlineInput">Outline Plan</label>
+          <textarea id="mitigationOutlineInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="flex items-center justify-between">
+          <h5 class="font-semibold">Select Gaps this mitigation will address</h5>
+          <div class="text-xs text-slate-500">Click to toggle selection</div>
+        </div>
+        <div id="mitigationGapPicker" class="mt-2 flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="mitigationCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="mitigationOkBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white">Save Mitigation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart modal -->
+  <div id="chartModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="chartModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6">
+      <h4 id="chartModalTitle" class="text-lg font-semibold mb-4">Insert Chart</h4>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="chartType">Chart type</label>
+          <select id="chartType" class="w-full px-3 py-2 rounded-xl border">
+          <option value="bar">Bar</option>
+          <option value="pie">Pie</option>
+          <option value="line">Line</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="chartTitle">Title (optional)</label>
+          <input id="chartTitle" type="text" class="w-full px-3 py-2 rounded-xl border" placeholder="e.g., Incident breakdown" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1" for="chartData">Data (one item per line)</label>
+          <textarea id="chartData" rows="6" class="w-full px-3 py-2 rounded-xl border"
+            placeholder="Dwelling fires, 34&#10;RTC, 18&#10;Wildfire, 12"></textarea>
+          <p class="text-xs text-slate-500 mt-1">Format: <code>Label, Value</code>. Commas in labels are supported via quotes, e.g. <code>&quot;Large, Retail&quot;, 12</code>.</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1" for="chartH">Height (px)</label>
+          <input id="chartH" type="number" min="180" value="320" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center mt-4">
+        <div class="text-xs text-slate-500">Tip: double-click a chart to edit it.</div>
+        <div class="flex gap-2">
+          <button id="chartCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+          <button id="chartOkBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">Insert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Action modal -->
+<div id="actionModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="actionModalTitle" tabindex="-1">
+  <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+    <h4 id="actionModalTitle" class="text-lg font-semibold mb-4">Add Action</h4>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium mb-1" for="actionTitleInput">Title</label>
+        <input id="actionTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1" for="actionOwnerInput">Owner (optional)</label>
+        <input id="actionOwnerInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="actionStatusInput">Status</label>
+          <select id="actionStatusInput" class="w-full px-3 py-2 rounded-xl border">
+            <option>Planned</option>
+            <option>In Progress</option>
+            <option>Blocked</option>
+            <option>Complete</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="actionColorInput">Color (optional)</label>
+          <input id="actionColorInput" type="color" class="w-full h-[42px] px-2 py-2 rounded-xl border" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1" for="actionDescInput">Description (optional)</label>
+        <textarea id="actionDescInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-6">
+      <button id="actionCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+      <button id="actionOkBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Save</button>
+    </div>
+  </div>
+</div>
+
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================== *
+     *  Utilities / Security          *
+     * ============================== */
+    function safeUrl(u){
+      try {
+        const url = new URL(String(u || ''), location.origin);
+        if (!/^https?:$/i.test(url.protocol)) return '#';
+        return url.href;
+      } catch { return '#'; }
+    }
+    function makeDebounced(fn, ms = 120) {
+      let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+    const el = (id) => document.getElementById(id);
+    const clamp15 = (n) => Math.max(1, Math.min(5, Number(n || 0)));
+    const round1 = (x) => Math.round(x * 10) / 10;
+    const normalize = (s) => (s || '').toString().toLowerCase();
+    const enabledOf = (key) => (el('en_' + key)?.checked ?? false);
+    const escapeHtml = (s) => String(s || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+
+    /* ============================== *
+     *  Config & constants            *
+     * ============================== */
+    const CFG = Object.freeze({
+      categories: [
+        { key: 'people', title: 'People', enabled: false, sub: [
+          { id: 'p_phys',  label: 'Physical Harm' },
+          { id: 'p_psych', label: 'Psychological Harm' },
+          { id: 'p_fin',   label: 'Financial Harm' }
+        ]},
+        { key: 'buildings', title: 'Buildings & Infrastructure', enabled: false, sub: [
+          { id: 'b_stock',     label: 'Premises (domestic, commercial, industrial, heritage, high-risk)' },
+          { id: 'b_cni',       label: 'Critical national infrastructure (energy, water, transport, comms)' },
+          { id: 'b_transport', label: 'Roads / rail / bridges / tunnels impacts' }
+        ]},
+        { key: 'environment', title: 'Environment', enabled: false, sub: [
+          { id: 'e_nat',    label: 'Natural environment (wildfire, flood, storms, climate)' },
+          { id: 'e_poll',   label: 'Pollution (chemical, smoke, water contamination)' },
+          { id: 'e_biodiv', label: 'Biodiversity & heritage landscapes' }
+        ]},
+        { key: 'ff', title: 'Firefighter & Responder Safety', enabled: false, sub: [
+          { id: 'f_haz',   label: 'Exposure to hazardous materials' },
+          { id: 'f_struct',label: 'Structural collapse / entrapment / fatigue' },
+          { id: 'f_psych', label: 'Psychological harm and wellbeing' }
+        ]},
+        { key: 'community', title: 'Community & Society', enabled: false, sub: [
+          { id: 'c_trust',   label: 'Public expectations and trust in FRS' },
+          { id: 'c_cohesion',label: 'Social cohesion / impacts on vulnerable communities' },
+          { id: 'c_disrupt', label: 'Wider community impact of disruption / failure to respond' }
+        ]},
+        { key: 'economy', title: 'Economy / Business Continuity', enabled: false, sub: [
+          { id: 'ec_local',  label: 'Local economy (businesses, jobs, tourism)' },
+          { id: 'ec_supply', label: 'Supply chains / critical services disruption' },
+          { id: 'ec_fin',    label: 'Financial harm to individuals / communities' }
+        ]},
+        { key: 'reputation', title: 'Reputation / Organisational Impact', enabled: false, sub: [
+          { id: 'r_conf',  label: 'Confidence in the service' },
+          { id: 'r_legal', label: 'Legal / statutory compliance' },
+          { id: 'r_multi', label: 'Impact on partner agencies / multi-agency reputation' }
+        ]}
+      ],
+      likelihoodId: 'o_likelihood',
+      mitigationSteps: { 1: 0.00, 2: 0.10, 3: 0.25, 4: 0.40, 5: 0.60 }
+    });
+
+    const GUIDANCE = Object.freeze({
+      p_phys: ['None / negligible injury', 'Minor first aid', 'Medical attention required', 'Serious injury / hospitalization', 'Multiple serious injuries / fatalities'],
+      p_psych: ['No noticeable impact', 'Temporary distress', 'Short-term clinical support needed', 'Long-term individual impact', 'Widespread or severe psychological harm'],
+      p_fin:  ['No measurable cost', 'Minor personal costs', 'Significant personal/household costs', 'Severe financial hardship', 'Widespread financial harm']
+    });
+
+    /* ============================== *
+     *  List view & sorting state     *
+     * ============================== */
+    let LIST_VIEW_MODE = 'grouped';
+    let LIST_SEARCH = '';
+    const EVENT_SORT = { key: 'score', dir: 'desc' };
+
+    /* ============================== *
+     *  App state (editing, file)     *
+     * ============================== */
+    let editingId = null;
+    let editingHazardId = null;
+
+    let currentFileHandle = null;
+    let currentFileName = null;
+    let fileDirty = false;
+    let saving = false;
+    let lastSavedSnapshot = '';
+
+    /* ============================== *
+     *  Modal a11y helpers            *
+     * ============================== */
+    let lastFocusEl = null;
+    function focusablesIn(root){
+      return Array.from(root.querySelectorAll('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])'))
+        .filter(el => !el.hasAttribute('disabled') && el.offsetParent !== null);
+    }
+    function openModal(modalEl, focusSelector){
+      lastFocusEl = document.activeElement;
+      modalEl.classList.remove('hidden'); modalEl.classList.add('flex');
+      modalEl.setAttribute('aria-hidden','false');
+      modalEl.dataset.trap = '1';
+      const fs = focusSelector ? modalEl.querySelector(focusSelector) : focusablesIn(modalEl)[0];
+      (fs || modalEl).focus();
+    }
+    function closeModal(modalEl){
+      modalEl.classList.add('hidden'); modalEl.classList.remove('flex');
+      modalEl.setAttribute('aria-hidden','true');
+      delete modalEl.dataset.trap;
+      if (lastFocusEl && lastFocusEl.focus) { lastFocusEl.focus(); }
+    }
+    document.addEventListener('keydown', (e)=>{
+      const open = Array.from(document.querySelectorAll('[role="dialog"]')).find(m => m.dataset.trap === '1');
+      if (!open) return;
+      if (e.key === 'Escape'){ e.preventDefault(); const btn = open.querySelector('button[id$="CancelBtn"],#mitigationCancelBtn'); if (btn) btn.click(); else closeModal(open); }
+      if (e.key === 'Tab'){
+        const f = focusablesIn(open);
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement);
+        if (e.shiftKey && (i <= 0 || document.activeElement === open)) { e.preventDefault(); f[f.length-1].focus(); }
+        else if (!e.shiftKey && (i === f.length-1)) { e.preventDefault(); f[0].focus(); }
+      }
+    });
+
+    /* ============================== *
+     *  Helpers (calc/format/etc)     *
+     * ============================== */
+    function statusDotEl() { return el('statusDot'); }
+    function statusTextEl() { return el('statusText'); }
+    function formatTime(d = new Date()) {
+      const hh = d.getHours().toString().padStart(2, '0');
+      const mm = d.getMinutes().toString().padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+    function refreshStatus() {
+      const dot = statusDotEl(); const text = statusTextEl();
+      if (!dot || !text) return;
+      let base = currentFileName ? `File: ${currentFileName}` : 'Unsaved';
+      if (saving) { dot.className = 'pulse-dot bg-sky-500'; text.textContent = `${base} • Saving…`; return; }
+      if (fileDirty) { dot.className = 'inline-block w-2 h-2 rounded-full bg-amber-500'; text.textContent = `${base} • Unsaved changes`; return; }
+      dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500'; text.textContent = `${base} • Saved ${formatTime()}`;
+    }
+    function canSave() { return !!(currentFileHandle && currentFileHandle.createWritable); }
+    function updateFileMenuState() { el('menuSave').disabled = !canSave(); refreshStatus(); }
+
+    function getDatasetSnapshotString() {
+      return Promise.all([SessionStore.getAll(), SessionStore.getAllHazards(), SessionStore.getAllActions()]).then(([items, hazards, actions]) => {
+        items.sort((a, b) => (a.id || 0) - (b.id || 0));
+        hazards.sort((a, b) => (a.id || 0) - (b.id || 0));
+        actions.sort((a, b) => (a.id || 0) - (b.id || 0));
+        return JSON.stringify({ items, hazards, actions });
+      });
+    }
+    
+    async function updateSavedSnapshot() { lastSavedSnapshot = await getDatasetSnapshotString(); fileDirty = false; refreshStatus(); }
+    async function recomputeDirtyAgainstSnapshot() { const snap = await getDatasetSnapshotString(); fileDirty = (snap !== lastSavedSnapshot); refreshStatus(); }
+
+    function mitigationReduction(eff) {
+      const e = clamp15(eff);
+      if (CFG.mitigationSteps) {
+        const v = CFG.mitigationSteps[e];
+        return typeof v === 'number' ? v : 0;
+      }
+      return ((e - 1) / 4) * 0.4;
+    }
+    function riskClass(score) {
+      const s = Number(score || 0);
+      if (s > 25) return { label: 'Extremely High', cls: 'bg-rose-100 text-rose-800' };
+      if (s >= 21) return { label: 'Very High', cls: 'bg-rose-100 text-rose-800' };
+      if (s >= 16) return { label: 'High', cls: 'bg-orange-100 text-orange-800' };
+      if (s >= 11) return { label: 'Moderate', cls: 'bg-amber-100 text-amber-800' };
+      if (s >= 6)  return { label: 'Low', cls: 'bg-yellow-100 text-yellow-800' };
+      return { label: 'Very Low', cls: 'bg-emerald-100 text-emerald-800' };
+    }
+
+    /* ============================== *
+     *  Store (in-memory session)     *
+     * ============================== */
+    const SessionStore = {
+  _items: [], _hazards: [], _actions: [],
+  _nextItemId: 1, _nextHazId: 1, _nextActionId: 1,
+
+  // Events
+  add(rec) { const id = this._nextItemId++; const copy = { ...rec, id }; this._items.unshift(copy); return Promise.resolve({ id }); },
+  put(rec) { if (!rec.id) return this.add(rec); const i = this._items.findIndex(x => x.id === rec.id);
+    const c = JSON.parse(JSON.stringify(rec)); if (i > -1) this._items[i] = c; else this._items.unshift(c); return Promise.resolve({ id: rec.id }); },
+  getAll() { return Promise.resolve(this._items.map(x => JSON.parse(JSON.stringify(x)))); },
+  get(id) { const it = this._items.find(x => x.id === id); return Promise.resolve(it ? JSON.parse(JSON.stringify(it)) : null); },
+  delete(id) { this._items = this._items.filter(x => x.id !== id); return Promise.resolve(); },
+
+  // Hazards
+  addHazard(title) { const id = this._nextHazId++; this._hazards.push({ id, title: String(title || 'Untitled Hazard').trim() }); return Promise.resolve({ id }); },
+  putHazard(haz) { const i = this._hazards.findIndex(h => h.id === haz.id); if (i > -1) this._hazards[i] = { id: haz.id, title: String(haz.title || 'Untitled Hazard').trim() }; return Promise.resolve({ id: haz.id }); },
+  getAllHazards() { return Promise.resolve(this._hazards.map(h => ({ id: h.id, title: h.title }))); },
+  deleteHazard(id) { this._hazards = this._hazards.filter(h => h.id !== id); this._items = this._items.map(ev => (ev.hazardId === id ? { ...ev, hazardId: null } : ev)); return Promise.resolve(); },
+
+  // Actions
+  addAction(a) { const id = this._nextActionId++; const copy = { id, title: String(a.title||'Untitled Action').trim(), description: a.description||'', status: a.status||'Planned', owner: a.owner||'', color: a.color||'' , createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this._actions.push(copy); return Promise.resolve({ id }); },
+  putAction(a) { const i = this._actions.findIndex(x => x.id === a.id); const rec = { ...this._actions[i], ...a, updatedAt: new Date().toISOString() }; if (i > -1) this._actions[i] = rec; else this._actions.push(rec); return Promise.resolve({ id: rec.id }); },
+  deleteAction(id) { this._actions = this._actions.filter(x => x.id !== id);
+    // detach mitigations that referenced this action
+    this._items = this._items.map(ev => ({ ...ev, planMitigations: (ev.planMitigations||[]).map(m => ({ ...m, actionId: m.actionId === id ? null : m.actionId })) }));
+    return Promise.resolve();
+  },
+  getAllActions() { return Promise.resolve(this._actions.map(x => ({ ...x }))); },
+
+  // Bulk load/set
+  setAll(payload) {
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const hazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
+    const actions = Array.isArray(payload?.actions) ? payload.actions : [];
+
+    this._items = []; this._hazards = []; this._actions = [];
+    this._nextItemId = 1; this._nextHazId = 1; this._nextActionId = 1;
+
+    hazards.forEach(h => { this._hazards.push({ id: this._nextHazId++, title: String(h.title || 'Untitled Hazard') }); });
+    actions.forEach(a => { this._actions.push({ id: this._nextActionId++, title: String(a.title || 'Untitled Action'), description: a.description||'', status: a.status||'Planned', owner: a.owner||'', color: a.color||'', createdAt: a.createdAt||new Date().toISOString(), updatedAt: a.updatedAt||new Date().toISOString() }); });
+    items.forEach(it => { this._items.push({ ...it, id: this._nextItemId++ }); });
+  }
+};
+
+
+    /* ============================== *
+     *  Sorting / filtering helpers   *
+     * ============================== */
+    const sortComparators = {
+      title: (a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }),
+      status: (a, b) => (a.status || '').localeCompare(b.status || '', undefined, { sensitivity: 'base' }),
+      score: (a, b) => Number((a.framework7 || {}).overall || 0) - Number((b.framework7 || {}).overall || 0)
+    };
+    function sortEvents(rows) { const cmp = sortComparators[EVENT_SORT.key] || sortComparators.score; const out = rows.slice().sort(cmp); if (EVENT_SORT.dir === 'desc') out.reverse(); return out; }
+    function sortHazardsByTitle(hazards) { return hazards.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'',undefined,{sensitivity:'base'})); }
+    function sortIcon(key) { if (EVENT_SORT.key !== key) return ''; return EVENT_SORT.dir === 'asc' ? ' ▲' : ' ▼'; }
+    function handleHeaderClick(key) { if (EVENT_SORT.key === key) { EVENT_SORT.dir = EVENT_SORT.dir === 'asc' ? 'desc' : 'asc'; } else { EVENT_SORT.key = key; EVENT_SORT.dir = (key === 'score' ? 'desc' : 'asc'); } resortAllTablesInPlace(); updateSortIndicators(el('hazardsAccordion')); }
+    function filterItemsBySearch(items) { const q = normalize(LIST_SEARCH).trim(); if (!q) return items; return items.filter(ev => normalize(ev.title).includes(q)); }
+
+    /* ============================== *
+     *  Guidance UI helpers           *
+     * ============================== */
+    function renderGuidanceHtml(id, lines) {
+      if (!Array.isArray(lines) || !lines.length) return '';
+      const n = lines.length;
+      const items = lines.slice().reverse().map((txt, idx) => {
+        const step = n - idx;
+        return `<li class="flex gap-2 items-start" data-step="${step}"><span class="inline-block w-5 text-right text-sky-800 font-semibold">${step}</span><span class="flex-1">${escapeHtml(txt)}</span></li>`;
+      }).join('');
+      return `<div id="g_${id}" class="rounded-xl bg-sky-50 text-sky-800 px-3 text-sm overflow-hidden transition-all duration-200 ease-out gpanel-collapsed border border-sky-200"><div class="font-medium mb-1">Scoring guide</div><ul class="list-none pl-0 space-y-1">${items}</ul></div>`;
+    }
+    function showGuide(panelId) { const d = el(panelId); if (!d) return; d.classList.remove('gpanel-collapsed'); d.classList.add('gpanel-expanded'); }
+    function hideGuide(panelId) { const d = el(panelId); if (!d) return; d.classList.remove('gpanel-expanded'); d.classList.add('gpanel-collapsed'); }
+    function updateGuidanceHighlight(subId) {
+      const panel = el('g_' + subId); if (!panel) return;
+      const input = el(subId); if (!input) return;
+      const val = clamp15(input.value);
+      const lis = panel.querySelectorAll('li[data-step]');
+      lis.forEach(li => {
+        if (Number(li.getAttribute('data-step')) === val) { li.classList.add('bg-sky-100','rounded','px-2','py-0.5','font-medium'); }
+        else { li.classList.remove('bg-sky-100','rounded','px-2','py-0.5','font-medium'); }
+      });
+    }
+
+    /* ============================== *
+     *  Rendering: Categories (Risk)  *
+     * ============================== */
+    const catRoot = el('categories');
+    function renderSubRow(sf) {
+      const guidance = GUIDANCE?.[sf.id];
+      return `<div class="subrow">
+        <div class="flex items-center justify-between gap-3">
+          <label class="w-56" for="${sf.id}">${sf.label}</label>
+          <input id="${sf.id}" type="number" min="1" max="5" value="3" class="w-20 text-center border rounded-lg py-1" />
+        </div>${guidance ? renderGuidanceHtml(sf.id, guidance) : ''}</div>`;
+    }
+    function buildCategoryBlocks() {
+      const frag = document.createDocumentFragment();
+      CFG.categories.forEach(cat => {
+        const box = document.createElement('div');
+        box.className = 'border rounded-2xl p-4';
+        box.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xl font-semibold">${cat.title}</h2>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-slate-600">Include</span>
+              <label class="switch">
+                <input id="en_${cat.key}" type="checkbox" ${cat.enabled ? 'checked' : ''}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div id="sec_${cat.key}_body" class="space-y-3">
+            ${cat.sub.map(sf => renderSubRow(sf)).join('')}
+            <div class="flex items-center justify-between gap-3 pt-2 border-t">
+              <span class="w-56 font-medium">Inherent ${cat.title} Score</span>
+              <output id="roll_${cat.key}" class="w-24 text-center font-semibold" aria-live="polite">3.0</output>
+            </div>
+
+            <div class="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-medium text-emerald-900">Existing mitigations</span>
+                <div class="flex items-center gap-2">
+                  <input id="mit_${cat.key}_input" type="text" placeholder="Add a mitigation…" class="px-2 py-1 text-sm border rounded-lg w-56" />
+                  <button id="mit_${cat.key}_add" class="px-2 py-1 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">+ Add</button>
+                </div>
+              </div>
+              <div id="mit_${cat.key}_list" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-medium text-rose-900">Identified gaps</span>
+                <div class="flex items-center gap-2">
+                  <input id="gap_${cat.key}__input" type="text" placeholder="Add a gap…" class="px-2 py-1 text-sm border rounded-lg w-56" />
+                  <button id="gap_${cat.key}_add" class="px-2 py-1 text-sm rounded-lg bg-rose-600 hover:bg-rose-700 text-white">+ Add</button>
+                </div>
+              </div>
+              <div id="gap_${cat.key}_list" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 mt-2">
+              <label class="w-56" for="eff_${cat.key}">Mitigation effectiveness (1-5)</label>
+              <input id="eff_${cat.key}" type="number" min="1" max="5" value="1" class="w-20 text-center border rounded-lg py-1" />
+            </div>
+
+            <div class="flex items-center justify-between gap-3 pt-2 border-t">
+              <span class="w-56 font-medium">Current ${cat.title} Score</span>
+              <output id="roll_adj_${cat.key}" class="w-24 text-center font-semibold" aria-live="polite">3.0</output>
+            </div>
+          </div>`;
+        frag.appendChild(box);
+      });
+
+      const like = document.createElement('div');
+      like.className = 'border rounded-2xl p-4';
+      like.innerHTML = `
+        <h2 class="text-xl font-semibold mb-2">Likelihood</h2>
+        <div class="flex items-center justify-between gap-3">
+          <label class="w-56" for="${CFG.likelihoodId}">Likelihood of occurrence</label>
+          <input id="${CFG.likelihoodId}" type="number" min="1" max="5" value="3" class="w-20 text-center border rounded-lg py-1" />
+        </div>
+        <div class="flex items-center justify-between gap-3 pt-2 border-t">
+          <span class="w-56 font-medium">Overall (L × Max current)</span>
+          <output id="overall_out" class="w-24 text-center font-semibold" aria-live="polite">0.0</output>
+        </div>`;
+      frag.appendChild(like);
+
+      catRoot.appendChild(frag);
+      CFG.categories.forEach(c => toggleSectionBody(c.key, enabledOf(c.key)));
+    }
+
+    /* ============================== *
+     *  Summary pills & radar         *
+     * ============================== */
+    const pillsRoot = el('summaryPills');
+    function buildPillsDynamic(rollsAdj, perCatRisk, overall) {
+      const enabledCats = CFG.categories.filter(c => enabledOf(c.key));
+      let html = enabledCats.map(cat => {
+        const val = Number.isFinite(perCatRisk?.[cat.key]) ? Number(perCatRisk[cat.key]) : 0;
+        const rc = riskClass(val);
+        return `<div class="p-3 rounded-xl bg-slate-50">
+          <div class="text-slate-500">${cat.title}</div>
+          <div id="pill_${cat.key}" class="text-2xl font-bold">${val.toFixed(1)}</div>
+          <div class="text-xs ${rc.cls} inline-block mt-1 px-2 py-0.5 rounded-full">${rc.label}</div>
+        </div>`;
+      }).join('');
+
+      const ov = Number.isFinite(overall) ? overall : 0;
+      const rcOv = riskClass(ov);
+      html += `<div class="p-3 rounded-xl bg-slate-50 col-span-2">
+        <div class="text-slate-500">Overall (Max impact × L)</div>
+        <div id="pill_overall" class="text-2xl font-bold">${ov.toFixed(1)}</div>
+        <div class="text-xs ${rcOv.cls} inline-block mt-1 px-2 py-0.5 rounded-full">${rcOv.label}</div>
+      </div>`;
+
+      pillsRoot.innerHTML = html;
+
+      // SR-only table for radar values
+      const rows = enabledCats.map(c => `<tr><th scope="row">${escapeHtml(c.title)}</th><td>${(perCatRisk[c.key] ?? 0).toFixed(1)}</td></tr>`).join('');
+      el('radarA11y').innerHTML = `<h4>Risk profile data</h4><table><thead><tr><th>Category</th><th>Risk (adj × L)</th></tr></thead><tbody>${rows}</tbody></table><p>Overall: ${ov.toFixed(1)}</p>`;
+    }
+
+    function drawRadar(rolls) {
+      const canvas = document.getElementById('radarChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      if (!canvas.style.width) canvas.style.width = '100%';
+      if (!canvas.style.height) canvas.style.height = '300px';
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.max(1, rect.width || 300);
+      const cssH = Math.max(1, rect.height || 300);
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      const enabledCats = CFG.categories.filter(c => enabledOf(c.key));
+      const labels = enabledCats.map(c => c.title);
+      const values = enabledCats.map(c => rolls[c.key] ?? 0);
+      if (!labels.length) { return; }
+      const max = 6;
+
+      const pad = 24;
+      const cx = cssW / 2;
+      const cy = cssH / 2;
+      const radius = Math.min(cssW, cssH) / 2 - pad - 10;
+      const steps = max;
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#cbd5e1';
+      for (let s = 1; s <= steps; s++) {
+        const r = radius * (s / max);
+        ctx.beginPath();
+        for (let i = 0; i < labels.length; i++) {
+          const ang = (Math.PI * 2 * i / labels.length) - Math.PI / 2;
+          const x = cx + r * Math.cos(ang);
+          const y = cy + r * Math.sin(ang);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath(); ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#e2e8f0';
+      for (let i = 0; i < labels.length; i++) {
+        const ang = (Math.PI * 2 * i / labels.length) - Math.PI / 2;
+        const x = cx + radius * Math.cos(ang);
+        const y = cy + radius * Math.sin(ang);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke();
+      }
+
+      ctx.fillStyle = '#475569';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let i = 0; i < labels.length; i++) {
+        const ang = (Math.PI * 2 * i / labels.length) - Math.PI / 2;
+        const lx = cx + (radius + 12) * Math.cos(ang);
+        const ly = cy + (radius + 12) * Math.sin(ang);
+        const text = labels[i].length > 18 ? labels[i].slice(0,15)+'…' : labels[i];
+        ctx.fillText(text, lx, ly);
+      }
+
+      const points = values.map((v, i) => {
+        const ang = (Math.PI * 2 * i / labels.length) - Math.PI / 2;
+        const r = radius * (v / max);
+        return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
+      });
+
+      ctx.beginPath();
+      points.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(99,102,241,0.15)';
+      ctx.strokeStyle = 'rgba(99,102,241,0.9)';
+      ctx.lineWidth = 2;
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(99,102,241,0.9)';
+      points.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); });
+    }
+
+    /* ============================== *
+     *  Calculations                  *
+     * ============================== */
+    function calcRoll(cat) {
+      const vals = cat.sub.map(sf => clamp15(el(sf.id).value));
+      if (!vals.length) return 0;
+      const sorted = vals.slice().sort((a, b) => b - a);
+      const top = sorted[0];
+      const others = sorted.slice(1);
+      const sumOthersTenths = others.reduce((a, b) => a + (b / 10), 0);
+      return round1(top + sumOthersTenths);
+    }
+    function calcAdjusted(cat) {
+      const base = calcRoll(cat);
+      const eff = clamp15(el('eff_' + cat.key).value);
+      const reduction = mitigationReduction(eff);
+      const adj = Math.max(0, base * (1 - reduction));
+      return { base, eff, adj: round1(adj) };
+    }
+    function recalc() {
+      const rollsAdj = {};
+      CFG.categories.forEach(cat => {
+        const { base, adj } = calcAdjusted(cat);
+        el('roll_' + cat.key).textContent = base.toFixed(1);
+        el('roll_adj_' + cat.key).textContent = adj.toFixed(1);
+        if (enabledOf(cat.key)) rollsAdj[cat.key] = adj;
+      });
+
+      const like = clamp15(el(CFG.likelihoodId).value);
+      const perCatRisk = {};
+      Object.keys(rollsAdj).forEach(k => { perCatRisk[k] = round1(rollsAdj[k] * like); });
+      const vals = Object.values(rollsAdj);
+      const maxAdj = vals.length ? Math.max(...vals) : 0;
+      const overall = round1(maxAdj * like);
+
+      el('overall_out').textContent = overall.toFixed(1);
+      buildPillsDynamic(rollsAdj, perCatRisk, overall);
+      drawRadar(rollsAdj);
+    }
+
+    /* ============================== *
+     *  Links helpers (safe URLs)     *
+     * ============================== */
+    function setLinks(arr) {
+      const root = el('linksList');
+      root.innerHTML = '';
+      (arr || []).forEach((lk, i) => root.appendChild(renderLinkRow(lk, i)));
+    }
+    function getLinks() {
+      const root = el('linksList');
+      return Array.from(root.querySelectorAll('[data-index]')).map(row => {
+        const title = row.querySelector('.font-medium')?.textContent ?? '';
+        const desc = row.querySelector('.text-slate-600')?.textContent ?? '';
+        const url = row.querySelector('a')?.getAttribute('href') ?? '';
+        return { title, description: desc, url };
+      });
+    }
+    function renderLinkRow(link, idx) {
+      const row = document.createElement('div');
+      row.className = 'border rounded-xl p-3 bg-white flex items-start justify-between gap-3';
+      row.setAttribute('data-index', String(idx));
+      const href = safeUrl(link.url || '');
+      row.innerHTML = `
+        <div class="min-w-0">
+          <div class="font-medium truncate">${escapeHtml(link.title || '(untitled)')}</div>
+          <div class="text-sm text-slate-600 line-clamp-2">${escapeHtml(link.description || '')}</div>
+          <a href="${href}" target="_blank" rel="noopener noreferrer" class="text-sm text-violet-700 underline break-all">${escapeHtml(link.url || '')}</a>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <button class="px-2 py-1 rounded-lg border text-sm" data-role="edit">Edit</button>
+          <button class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700 text-sm" data-role="remove">Remove</button>
+        </div>`;
+      row.querySelector('[data-role="edit"]').addEventListener('click', (e) => { e.stopPropagation(); openLinkModal('Edit Link', idx); markDirtySoon(); });
+      row.querySelector('[data-role="remove"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!confirm('Remove this link?')) return;
+        const arr = getLinks();
+        arr.splice(idx, 1);
+        setLinks(arr);
+        markDirtySoon();
+      });
+      return row;
+    }
+    function openLinkModal(title, idx = null) {
+      el('linkModalTitle').textContent = title || 'Add Link';
+      const isEdit = (idx !== null && idx !== undefined);
+      const arr = getLinks();
+      const existing = isEdit ? arr[idx] : { title: '', description: '', url: '' };
+      el('linkTitleInput').value = existing.title || '';
+      el('linkDescInput').value = existing.description || '';
+      el('linkUrlInput').value = existing.url || '';
+      openModal(el('linkModal'), '#linkTitleInput');
+
+      el('linkOkBtn').onclick = () => {
+        const t = el('linkTitleInput').value.trim();
+        const d = el('linkDescInput').value.trim();
+        const u = el('linkUrlInput').value.trim();
+        const link = { title: t, description: d, url: u };
+        if (isEdit) { const a = getLinks(); a[idx] = link; setLinks(a); }
+        else { const a = getLinks(); a.push(link); setLinks(a); }
+        closeModal(el('linkModal')); markDirtySoon();
+      };
+      el('linkCancelBtn').onclick = () => closeModal(el('linkModal'));
+    }
+
+    /* ============================== *
+     *  Mitigations & Gaps chips      *
+     * ============================== */
+    function renderTagChip({ type, key, title, details }) {
+      const wrap = document.createElement('span');
+      const baseBg = (type === 'mit' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800');
+      const baseHover = (type === 'mit' ? 'hover:bg-emerald-200' : 'hover:bg-rose-200');
+      wrap.className = `chip inline-flex items-center gap-1 px-2 py-1 rounded-full ${baseBg} text-xs`;
+      wrap.setAttribute('data-type', type);
+      wrap.setAttribute('data-key', key);
+      wrap.setAttribute('data-title', title || '');
+      wrap.setAttribute('data-details', details || '');
+      wrap.innerHTML = `
+        <button type="button" class="rounded px-1 ${baseHover}" title="Edit" aria-label="Edit ${type === 'mit' ? 'mitigation' : 'gap'}" data-role="edit">✎</button>
+        <span title="${escapeHtml(title || '')}" data-role="text">${escapeHtml(title || '')}</span>
+        <button type="button" class="rounded px-1 ${baseHover}" title="Remove" aria-label="Remove ${type === 'mit' ? 'mitigation' : 'gap'}" data-role="remove">×</button>`;
+      wrap.querySelector('[data-role="edit"]').addEventListener('click', (e) => { e.stopPropagation(); openEditModal(wrap); });
+      wrap.querySelector('[data-role="remove"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('Are you sure you want to remove this item?')) { wrap.remove(); recalc(); renderPlanGaps(); markDirty(); }
+      });
+      return wrap;
+    }
+    function addTag(type, key, title, details) {
+      const list = (type === 'mit' ? el(`mit_${key}_list`) : el(`gap_${key}_list`));
+      if (!list) return;
+      const chip = renderTagChip({ type, key, title: String(title || '').trim(), details: String(details || '').trim() });
+      list.appendChild(chip);
+      recalc(); renderPlanGaps(); markDirtySoon();
+    }
+    function setTags(type, key, arr) {
+      const list = (type === 'mit' ? el(`mit_${key}_list`) : el(`gap_${key}_list`));
+      if (!list) return;
+      list.innerHTML = '';
+      (arr || []).forEach(item => {
+        if (item == null) return;
+        if (typeof item === 'string') addTag(type, key, item, '');
+        else addTag(type, key, item.title || '', item.details || '');
+      });
+    }
+    function collectTags(type, key) {
+      const list = (type === 'mit' ? el(`mit_${key}_list`) : el(`gap_${key}_list`));
+      if (!list) return [];
+      return Array.from(list.querySelectorAll('span[data-type]')).map(s => ({
+        title: s.getAttribute('data-title') || '',
+        details: s.getAttribute('data-details') || ''
+      }));
+    }
+    const getMitigations = (key) => collectTags('mit', key);
+    const getGaps = (key) => collectTags('gap', key);
+    const setMitigations = (key, arr) => setTags('mit', key, arr);
+    const setGaps = (key, arr) => setTags('gap', key, arr);
+
+    function openEditModal(chipEl) {
+      const isMit = chipEl.getAttribute('data-type') === 'mit';
+      el('editModalTitle').textContent = isMit ? 'Edit Mitigation' : 'Edit Gap';
+      el('editTitleInput').value = chipEl.getAttribute('data-title') || '';
+      el('editDetailsInput').value = chipEl.getAttribute('data-details') || '';
+      openModal(el('editModal'), '#editTitleInput');
+      el('editOkBtn').onclick = () => {
+        const t = el('editTitleInput').value.trim();
+        const d = el('editDetailsInput').value.trim();
+        chipEl.setAttribute('data-title', t);
+        chipEl.setAttribute('data-details', d);
+        const textNode = chipEl.querySelector('[data-role="text"]');
+        textNode.textContent = t || '(untitled)';
+        textNode.title = t || '(untitled)';
+        closeModal(el('editModal'));
+        recalc(); renderPlanGaps(); markDirtySoon();
+      };
+      el('editCancelBtn').onclick = () => closeModal(el('editModal'));
+    }
+
+    /* ============================== *
+     *  Narrative generation          *
+     * ============================== */
+    function genNarrative() {
+      const title = (el('riskTitle').value || 'This hazardous event').trim();
+      const like = clamp15(el(CFG.likelihoodId).value);
+      const enabledCats = CFG.categories.filter(c => enabledOf(c.key));
+      const adjs = {}; enabledCats.forEach(cat => { adjs[cat.key] = calcAdjusted(cat).adj; });
+      const maxCat = enabledCats.length ? enabledCats.reduce((best, cur) => (adjs[cur.key] > adjs[best.key] ? cur : best), enabledCats[0]) : null;
+      const strong = enabledCats.filter(c => adjs[c.key] >= 4.8).map(c => c.title);
+
+      const parts = [];
+      parts.push(`${title} has a likelihood of ${like}/5${maxCat ? ` with strongest current impacts in ${maxCat.title}.` : '.'}`);
+      if (strong.length) parts.push('High-impact categories (after mitigation) include: ' + strong.join(', ') + '.');
+      if (maxCat) {
+        const topMits = getMitigations(maxCat.key).map(m => m.title).filter(Boolean);
+        if (topMits.length) { parts.push(`Existing mitigations for ${maxCat.title}: ${topMits.slice(0, 3).join('; ')}${topMits.length > 3 ? ' …' : ''}.`); }
+        const topGaps = getGaps(maxCat.key).map(g => g.title).filter(Boolean);
+        if (topGaps.length) { parts.push(`Key gaps for ${maxCat.title}: ${topGaps.slice(0, 3).join('; ')}${topGaps.length > 3 ? ' …' : ''}.`); }
+      }
+      parts.push('Priorities should focus on prevention, preparedness, and mitigation aligned to the highest residual risks.');
+      el('narrative').textContent = parts.join(' ');
+    }
+
+    /* ============================== *
+     *  Import via URL hash (guard)   *
+     * ============================== */
+    function toBase64Safe(str) { try { return btoa(unescape(encodeURIComponent(str))); } catch (e) { return btoa(str); } }
+    function fromBase64Safe(b64) { try { return decodeURIComponent(escape(atob(b64))); } catch (e) { return atob(b64); } }
+    function importFromHash() {
+      if (!location.hash || !location.hash.startsWith('#import=')) return;
+      const enc = location.hash.slice('#import='.length);
+      try {
+        const json = fromBase64Safe(enc);
+        const data = JSON.parse(json);
+        // shape + size guard
+        if (typeof data !== 'object') throw new Error('Bad payload');
+        const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+        const hazards = Array.isArray(data?.hazards) ? data.hazards : [];
+        const actions = Array.isArray(data?.actions) ? data.actions : [];
+				if (items.length > 10000 || hazards.length > 5000) throw new Error('Too large');
+				SessionStore.setAll({ items, hazards, actions });
+        refreshHazardsAccordion();
+        recalc();
+        updateSavedSnapshot();
+        updateFileMenuState();
+        alert('Imported from link');
+      } catch (e) {
+        console.error('Hash import failed', e);
+        alert('Failed to import from link');
+      } finally {
+        history.replaceState(null, document.title, location.pathname + location.search);
+      }
+    }
+
+    /* ============================== *
+     *  Collect / Save current event  *
+     * ============================== */
+    function collectCurrent(existing) {
+      // Description HTML
+      const detailsHtml = el('descEditor')?.innerHTML || '';
+
+      // Gather raw inputs (clamped to 1–5 just in case)
+      const inputs = {};
+      CFG.categories.forEach(c =>
+        c.sub.forEach(sf => inputs[sf.id] = clamp15(el(sf.id)?.value))
+      );
+      inputs[CFG.likelihoodId] = clamp15(el(CFG.likelihoodId)?.value);
+
+      // Rolls / adjusted / effectiveness / enabled flags
+      const rolls = {};
+      const adjs = {};
+      const effs = {};
+      const enabled = {};
+      const risks = {};
+
+      CFG.categories.forEach(c => {
+        const r = calcAdjusted(c);
+        rolls[c.key]   = r.base;
+        adjs[c.key]    = r.adj;
+        effs[c.key]    = r.eff;
+        enabled[c.key] = enabledOf(c.key);
+      });
+
+      // Per-category risks (adj × L) and overall (max adj × L)
+      const like = clamp15(inputs[CFG.likelihoodId]);
+      Object.keys(adjs).forEach(k => { if (enabled[k]) risks[k] = round1(adjs[k] * like); });
+      const currentVals = Object.entries(adjs)
+        .filter(([k]) => enabled[k])
+        .map(([, v]) => v);
+      const overall = round1((currentVals.length ? Math.max(...currentVals) : 0) * like);
+
+      // Mitigations / gaps snapshot
+      const mitigations = {};
+      CFG.categories.forEach(c => { mitigations[c.key] = getMitigations(c.key); });
+
+      const gaps = {};
+      CFG.categories.forEach(c => { gaps[c.key] = getGaps(c.key); });
+
+      // Links + plan mitigations deep copy
+      const links = getLinks();
+      const planMitigationsCopy = JSON.parse(JSON.stringify(planMitigations || []));
+
+      // Safe field reads
+      const hazardRaw = parseInt(el('hazardSel')?.value, 10);
+      const hazardId = Number.isFinite(hazardRaw) ? hazardRaw : null;
+      const title = (el('riskTitle')?.value || 'Untitled Hazardous Event').trim();
+      const status = el('statusSel')?.value || 'Tolerate';
+      const narrative = (el('narrative')?.textContent || '').trim();
+
+      // Timestamps: preserve createdAt on edit, add updatedAt
+      const baseTimestamps = existing
+        ? {
+            createdAt: existing.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        : { createdAt: new Date().toISOString() };
+
+      // Final record
+      return {
+        ...(editingId != null ? { id: editingId } : {}),
+        hazardId,
+        title,
+        status,
+        detailsHtml,
+        links,
+        planMitigations: planMitigationsCopy,
+        framework7: {
+          inputs,
+          rolls,
+          adjs,
+          risks,
+          effs,
+          like,
+          overall,
+          mitigations,
+          gaps,
+          enabled,
+          mitigationSteps: CFG.mitigationSteps
+        },
+        narrative,
+        ...baseTimestamps
+      };
+    }
+
+    function saveCurrent() {
+      const rec = collectCurrent();
+      const op = (editingId != null) ? SessionStore.put(rec) : SessionStore.add(rec);
+      op.then(async ({ id }) => {
+        editingId = id || editingId;
+        refreshHazardsAccordion();
+        switchToList();
+        await recomputeDirtyAgainstSnapshot();
+      }).catch(err => { console.error('Save failed', err); alert('Save failed: ' + (err?.message || err)); });
+    }
+    function loadEvent(id) {
+      SessionStore.get(id).then(r => {
+        if (!r) return;
+        editingId = r.id;
+        populateHazardSelect(r.hazardId ?? null);
+        el('riskTitle').value = r.title || '';
+        el('statusSel').value = r.status || 'Tolerate';
+        el('descEditor').innerHTML = r.detailsHtml || '';
+        renderAllCharts(el('descEditor'));
+        ensureTrailingParagraph();
+        setLinks(Array.isArray(r.links) ? r.links : []);
+
+        const f = r.framework7 || {}; const inputs = f.inputs || {}; const enabled = f.enabled || {};
+        CFG.categories.forEach(c => c.sub.forEach(sf => { if (el(sf.id)) el(sf.id).value = inputs[sf.id] ?? 3; }));
+        if (el(CFG.likelihoodId)) el(CFG.likelihoodId).value = inputs[CFG.likelihoodId] ?? 3;
+
+        const effs = f.effs || {}; CFG.categories.forEach(c => { if (el('eff_' + c.key)) el('eff_' + c.key).value = effs[c.key] ?? 1; });
+        const mits = (f.mitigations) || {}; CFG.categories.forEach(c => setMitigations(c.key, mits[c.key] || []));
+        const gaps = (f.gaps) || {}; CFG.categories.forEach(c => setGaps(c.key, gaps[c.key] || []));
+        CFG.categories.forEach(c => { const chk = el('en_' + c.key); if (chk) { chk.checked = enabled[c.key] === true; toggleSectionBody(c.key, chk.checked); } });
+
+        planMitigations = Array.isArray(r.planMitigations) ? r.planMitigations : (Array.isArray(r.planActions) ? r.planActions : []);
+        renderMitigationsList();
+        renderPlanGaps();
+
+        CFG.categories.forEach(c => { c.sub.forEach(sf => { if (GUIDANCE[sf.id]) updateGuidanceHighlight(sf.id); }); });
+        recalc();
+        el('narrative').textContent = r.narrative || el('narrative').textContent;
+        activateTab('details');
+        switchToEditor();
+      });
+    }
+
+    /* ============================== *
+     *  Plan: gaps & mitigations      *
+     * ============================== */
+    let planMitigations = [];
+    let editingMitigationIndex = null;
+
+    function gapKey(catKey, title, details) {
+      return `${catKey}|${(title || '').trim().toLowerCase()}|${(details || '').trim().toLowerCase()}`;
+    }
+    function getAllGapsFromUI() {
+      const out = [];
+      CFG.categories.forEach(c => {
+        getGaps(c.key).forEach(g => {
+          const key = gapKey(c.key, g.title, g.details);
+          out.push({ key, catKey: c.key, title: g.title || '', details: g.details || '' });
+        });
+      });
+      return out;
+    }
+    function getAddressedKeys(tempSelectedKeys = new Set()) {
+      const keys = new Set();
+      planMitigations.forEach(a => (a.gaps || []).forEach(g => keys.add(g.key)));
+      tempSelectedKeys.forEach(k => keys.add(k));
+      return keys;
+    }
+
+    function renderPlanGaps(tempSelectedKeys) {
+      const addressedKeys = getAddressedKeys(tempSelectedKeys || new Set());
+      const byGroup = new Map();
+      CFG.categories.forEach(cat => {
+        const gaps = getGaps(cat.key);
+        if (!gaps.length) return;
+        const bucket = { cat, addressed: [], unaddressed: [] };
+        gaps.forEach(g => {
+          const key = gapKey(cat.key, g.title, g.details);
+          const chip = `<span class="pill ${addressedKeys.has(key) ? 'pill-amber' : 'pill-red'}" title="${escapeHtml(g.details || '')}">${escapeHtml(g.title || '(gap)')}</span>`;
+          if (addressedKeys.has(key)) bucket.addressed.push(chip);
+          else bucket.unaddressed.push(chip);
+        });
+        byGroup.set(cat.key, bucket);
+      });
+
+      const root = el('plan_gaps_by_group');
+      if (!byGroup.size) {
+        root.innerHTML = `<div class="text-sm text-slate-500">No gaps defined yet. Add gaps in the Analysis tab.</div>`;
+        return;
+      }
+
+      const rows = [];
+      byGroup.forEach(({ cat, addressed, unaddressed }) => {
+        rows.push(`<div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-xl bg-white border">
+          <div class="md:col-span-1">
+            <div class="text-sm text-slate-500 mb-1">Risk Group</div>
+            <div class="font-medium">${escapeHtml(cat.title)}</div>
+          </div>
+          <div>
+            <div class="text-sm text-slate-600 mb-1">Addressed by Mitigations</div>
+            <div class="flex flex-wrap gap-2">${addressed.join('') || '<span class="text-slate-400 text-sm">None</span>'}</div>
+          </div>
+          <div>
+            <div class="text-sm text-slate-600 mb-1">Not Addressed Yet</div>
+            <div class="flex flex-wrap gap-2">${unaddressed.join('') || '<span class="text-slate-400 text-sm">None</span>'}</div>
+          </div>
+        </div>`);
+      });
+
+      root.innerHTML = rows.join('');
+    }
+
+    function renderMitigationsList() {
+      const root = el('mitigationsList');
+      if (!planMitigations.length) {
+        root.innerHTML = `<div class="text-sm text-slate-500">No mitigations yet. Click <strong>+ Add Mitigation</strong> to create one.</div>`;
+        return;
+      }
+      root.innerHTML = planMitigations.map((a, idx) => {
+        const dateStr = [a.start || '', a.end || ''].filter(Boolean).join(' → ');
+        const gapBadges = (a.gaps || []).map(g => `<span class="pill pill-amber">${escapeHtml(g.title || '(gap)')}</span>`).join(' ');
+        return `<div class="border rounded-xl p-3 bg-white flex flex-col gap-2" data-mitigation-index="${idx}">
+          <div class="flex items-center justify-between">
+            <div class="font-medium">${escapeHtml(a.title || '(untitled mitigation)')}</div>
+            <div class="text-xs text-slate-500">${escapeHtml(dateStr || '')}</div>
+          </div>
+          <div class="text-sm text-slate-700 whitespace-pre-line">${escapeHtml(a.outline || '')}</div>
+          <div class="flex flex-wrap gap-2">${gapBadges}</div>
+          <div class="flex gap-2 justify-end">
+            <button class="px-2 py-1 rounded-lg border text-sm" data-mit="edit" data-index="${idx}">Edit</button>
+            <button class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700 text-sm" data-mit="del" data-index="${idx}">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function openMitigationModal(index = null) {
+      editingMitigationIndex = (index != null ? index : null);
+      const allGaps = getAllGapsFromUI();
+
+      if (index == null) {
+        el('mitigationModalTitle').textContent = 'Add Mitigation';
+        el('mitigationTitleInput').value = '';
+        el('mitigationOutlineInput').value = '';
+        el('mitigationStartInput').value = '';
+        el('mitigationEndInput').value = '';
+      } else {
+        const a = planMitigations[index];
+        el('mitigationModalTitle').textContent = 'Edit Mitigation';
+        el('mitigationTitleInput').value = a.title || '';
+        el('mitigationOutlineInput').value = a.outline || '';
+        el('mitigationStartInput').value = a.start || '';
+        el('mitigationEndInput').value = a.end || '';
+      }
+
+      const selectedKeys = new Set(index == null ? [] : (planMitigations[index].gaps || []).map(g => g.key));
+      const picker = el('mitigationGapPicker');
+      picker.innerHTML = allGaps.map(g => {
+        const pressed = selectedKeys.has(g.key) ? 'true' : 'false';
+        return `<button type="button" class="gap-pill pill pill-muted" aria-pressed="${pressed}" data-key="${g.key}" title="${escapeHtml(g.details || '')}">${escapeHtml(g.title || '(gap)')}</button>`;
+      }).join('') || '<div class="text-sm text-slate-500">No gaps defined in the Analysis tab.</div>';
+
+      function currentTempSet() {
+        return new Set(Array.from(picker.querySelectorAll('.gap-pill[aria-pressed="true"]')).map(b => b.getAttribute('data-key')));
+      }
+      function refreshPickerColours() {
+        const temp = currentTempSet();
+        const addressed = getAddressedKeys(temp);
+        picker.querySelectorAll('.gap-pill').forEach(btn => {
+          const k = btn.getAttribute('data-key');
+          const on = btn.getAttribute('aria-pressed') === 'true';
+          btn.classList.remove('pill-red', 'pill-amber', 'pill-muted');
+          if (!on) { btn.classList.add('pill-muted'); }
+          else { if (addressed.has(k)) btn.classList.add('pill-amber'); else btn.classList.add('pill-red'); }
+        });
+        renderPlanGaps(temp);
+      }
+
+      picker.querySelectorAll('.gap-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const now = btn.getAttribute('aria-pressed') === 'true';
+          btn.setAttribute('aria-pressed', now ? 'false' : 'true');
+          refreshPickerColours();
+        });
+      });
+
+      refreshPickerColours();
+      openModal(el('mitigationModal'), '#mitigationTitleInput');
+
+      el('mitigationOkBtn').onclick = () => {
+        const title = el('mitigationTitleInput').value.trim();
+        const outline = el('mitigationOutlineInput').value.trim();
+        const start = el('mitigationStartInput').value;
+        const end = el('mitigationEndInput').value;
+
+        const temp = currentTempSet();
+        const selected = Array.from(temp).map(key => {
+          const g = allGaps.find(x => x.key === key);
+          return { key, catKey: g?.catKey || '', title: g?.title || '', details: g?.details || '' };
+        });
+
+        const mitigationObj = { id: (editingMitigationIndex != null ? planMitigations[editingMitigationIndex].id : Date.now()), title, outline, start, end, gaps: selected };
+
+        if (editingMitigationIndex == null) planMitigations.push(mitigationObj);
+        else planMitigations[editingMitigationIndex] = mitigationObj;
+
+        renderMitigationsList();
+        renderPlanGaps();
+        closeModal(el('mitigationModal'));
+        markDirtySoon();
+      };
+      el('mitigationCancelBtn').onclick = () => closeModal(el('mitigationModal'));
+    }
+
+    /* ============================== *
+     *  Hazards list (accordion/all)  *
+     * ============================== */
+    function buildEventRowsHTML(rows) {
+      return rows.map(r => {
+        const f = r.framework7 || {};
+        const overall = Number(f.overall ?? 0);
+        const rc = riskClass(overall);
+        const status = r.status || 'Tolerate';
+        const badge = `<span class="inline-block text-xs ${rc.cls} px-2 py-0.5 rounded-full">${rc.label}</span>`;
+        return `<tr class="border-b hover:bg-slate-50" data-id="${r.id}">
+          <td class="py-2 pr-4">${escapeHtml(r.title || '')}</td>
+          <td class="py-2 pr-4"><div class="flex items-center gap-2"><span class="font-semibold">${overall.toFixed(1)}</span>${badge}</div></td>
+          <td class="py-2 pr-4">${escapeHtml(status)}</td>
+          <td class="py-2 pr-4">
+            <button data-action="edit" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Edit</button>
+            <button data-action="dup"  data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Duplicate</button>
+            <button data-action="del"  data-id="${r.id}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+    function hazardBlock(h, rows, isUncat = false) {
+      const count = rows.length;
+      const subtitle = `${isUncat ? 'Uncategorised' : 'Hazard'} • ${count} event${count === 1 ? '' : 's'}`;
+      const hazIdAttr = (h.id === null ? 'null' : String(h.id));
+      const headerActions = isUncat ? '' : `<div class="flex gap-2">
+        <button data-action="haz-rename" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border">Rename</button>
+        <button data-action="haz-delete" data-id="${hazIdAttr}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button></div>`;
+      const rowsSorted = sortEvents(rows || []);
+      const tableRows = buildEventRowsHTML(rowsSorted);
+      return `<details class="rounded-xl border">
+        <summary class="cursor-pointer select-none flex items-center justify-between p-4">
+          <div class="flex items-center gap-3">
+            <svg class="chev transition-transform" width="16" height="16" viewBox="0 0 20 20"><path fill="currentColor" d="M7 5l6 5-6 5V5z"/></svg>
+            <div><div class="font-semibold">${escapeHtml(h.title || 'Untitled Hazard')}</div>
+            <div class="text-sm text-slate-500">${subtitle}</div></div>
+          </div>${headerActions}
+        </summary>
+        <div class="p-4 pt-0">
+          <div class="overflow-x-auto mt-3">
+            <table class="min-w-full text-sm" data-hazard="${hazIdAttr}">
+              <thead>
+                <tr class="text-left">
+                  <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="title" type="button">Event Title${sortIcon('title')}</button></th>
+                  <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="score" type="button">Risk Score${sortIcon('score')}</button></th>
+                  <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="status" type="button">Status${sortIcon('status')}</button></th>
+                  <th class="py-2 pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="tbody-fade">${tableRows || ''}</tbody>
+            </table>
+          </div>
+        </div>
+      </details>`;
+    }
+    function updateAriaSort(root) {
+      root.querySelectorAll('table thead th').forEach(th => { th.setAttribute('aria-sort', 'none'); });
+      root.querySelectorAll('.th-sort').forEach(btn => {
+        const key = btn.getAttribute('data-sort');
+        const th = btn.closest('th'); if (!th) return;
+        th.setAttribute('aria-sort', EVENT_SORT.key === key ? (EVENT_SORT.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+      });
+    }
+    function updateSortIndicators(root) {
+      root.querySelectorAll('table thead .th-sort').forEach(btn => {
+        const key = btn.getAttribute('data-sort');
+        const base = btn.dataset.baseLabel || btn.textContent.replace(/[▲▼]\s*$/, '').trim();
+        btn.dataset.baseLabel = base;
+        let suffix = '';
+        if (EVENT_SORT.key === key) suffix = (EVENT_SORT.dir === 'asc' ? ' ▲' : ' ▼');
+        btn.textContent = base + suffix;
+      });
+    }
+    async function renderAllEventsTable(items) {
+      const root = document.getElementById('hazardsAccordion');
+      const rowsSorted = sortEvents(items || []);
+      root.innerHTML = `<div class="overflow-x-auto">
+        <table class="min-w-full text-sm" id="allEventsTable" data-hazard="all">
+          <thead><tr class="text-left">
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="title" type="button">Event Title</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="score" type="button">Risk Score</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="status" type="button">Status</button></th>
+            <th class="py-2 pr-4">Actions</th>
+          </tr></thead>
+          <tbody class="tbody-fade">${buildEventRowsHTML(rowsSorted)}</tbody>
+        </table></div>`;
+      updateSortIndicators(root);
+      updateAriaSort(root);
+    }
+    function renderHazardsAccordion(hazards, items) {
+      const root = el('hazardsAccordion');
+      if (!hazards.length && !items.length) {
+        root.innerHTML = `<div class="text-slate-500">No Hazards or Hazardous Events yet. Use <strong>Add Hazard</strong> or <strong>Add Hazardous Event</strong> to begin.</div>`;
+        updateAriaSort(root);
+        return;
+      }
+      const hazardsAZ = sortHazardsByTitle(hazards);
+      const byHaz = new Map();
+      hazardsAZ.forEach(h => byHaz.set(h.id, []));
+      const uncategorised = [];
+      items.forEach(ev => { if (ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev); else uncategorised.push(ev); });
+      const blocks = [];
+      hazardsAZ.forEach(h => { blocks.push(hazardBlock(h, byHaz.get(h.id) || [])); });
+      blocks.push(hazardBlock({ id: null, title: 'Uncategorised' }, uncategorised, true));
+      root.innerHTML = blocks.join('');
+      updateSortIndicators(root);
+      updateAriaSort(root);
+    }
+    async function renderListView() {
+      if (LIST_VIEW_MODE === 'actions') { await renderActionsList(); return; }
+      const [hazards, items] = await Promise.all([SessionStore.getAllHazards(), SessionStore.getAll() ]);
+      const filtered = filterItemsBySearch(items);
+      if (LIST_VIEW_MODE === 'grouped') { renderHazardsAccordion(hazards, filtered); }
+      else { renderAllEventsTable(filtered); }
+    }
+    function refreshHazardsAccordion() { renderListView(); }
+    async function resortAllTablesInPlace() {
+      const [hazards, items] = await Promise.all([SessionStore.getAllHazards(), SessionStore.getAll()]);
+      const hazardsAZ = sortHazardsByTitle(hazards);
+      const byHaz = new Map(); hazardsAZ.forEach(h => byHaz.set(h.id, []));
+      const uncategorised = [];
+      items.forEach(ev => { if (ev.hazardId && byHaz.has(ev.hazardId)) byHaz.get(ev.hazardId).push(ev); else uncategorised.push(ev); });
+      document.querySelectorAll('#hazardsAccordion table[data-hazard]').forEach(tbl => {
+        const hidAttr = tbl.getAttribute('data-hazard');
+        const rows = (hidAttr === 'null') ? uncategorised : (hidAttr === 'all') ? items : (byHaz.get(Number(hidAttr)) || []);
+        const sorted = sortEvents(rows);
+        const tbody = tbl.querySelector('tbody'); if (!tbody) return;
+        tbody.style.opacity = '0';
+        setTimeout(() => { tbody.innerHTML = buildEventRowsHTML(sorted); tbody.style.opacity = '1'; }, 180);
+        updateAriaSort(tbl.closest('#hazardsAccordion') || document);
+      });
+    }
+    async function resortAllEventsInPlace() {
+      const tbl = document.getElementById('allEventsTable'); if (!tbl) return;
+      const tbody = tbl.querySelector('tbody');
+      const items = await SessionStore.getAll();
+      const filtered = filterItemsBySearch(items);
+      const sorted = sortEvents(filtered);
+      tbody.style.opacity = '0';
+      setTimeout(() => { tbody.innerHTML = buildEventRowsHTML(sorted); tbody.style.opacity = '1'; }, 180);
+      updateAriaSort(tbl.closest('#hazardsAccordion') || document);
+    }
+
+    /* ============================== *
+     *  Hazard select for editor      *
+     * ============================== */
+    function populateHazardSelect(selectedId) {
+      SessionStore.getAllHazards().then(hazards => {
+        const hazardsAZ = sortHazardsByTitle(hazards);
+        const sel = el('hazardSel');
+        const options = [`<option value="">(Uncategorised)</option>`, ...hazardsAZ.map(h => `<option value="${h.id}">${escapeHtml(h.title)}</option>`)];
+        sel.innerHTML = options.join('');
+        if (selectedId != null && hazardsAZ.some(h => h.id === selectedId)) sel.value = String(selectedId);
+        else if (editingHazardId != null && hazardsAZ.some(h => h.id === editingHazardId)) sel.value = String(editingHazardId);
+        else sel.value = '';
+      });
+    }
+
+    /* ============================== *
+     *  View switching & tabs         *
+     * ============================== */
+    function switchToList() { el('listView').classList.remove('hidden'); el('editorView').classList.add('hidden'); editingId = null; }
+    function switchToEditor() {
+      el('listView').classList.add('hidden'); el('editorView').classList.remove('hidden');
+      requestAnimationFrame(() => {
+        renderAllCharts(el('descEditor'));
+        ensureTrailingParagraph();
+      });
+    }
+    function toggleSectionBody(key, on) { const body = el('sec_' + key + '_body'); if (!body) return; body.classList.toggle('hidden', !on); }
+    function activateTab(name) {
+      const panels = { details: el('tab_details'), analysis: el('tab_analysis'), plan: el('tab_plan') };
+      const buttons = Array.from(document.querySelectorAll('[data-tab]'));
+      buttons.forEach(b => {
+        const on = (b.dataset.tab === name);
+        b.classList.toggle('tab-btn-active', on);
+        b.classList.toggle('tab-btn-inactive', !on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      Object.entries(panels).forEach(([k, panel]) => { if (panel) panel.classList.toggle('active', k === name); });
+      if (name === 'plan') { renderPlanGaps(); renderMitigationsList(); }
+    }
+    function wireTabs() {
+      const list = el('editorTabs');
+      list?.addEventListener('keydown', (e) => {
+        const tabs = Array.from(list.querySelectorAll('[role="tab"]'));
+        const idx = tabs.indexOf(document.activeElement);
+        if (idx < 0) return;
+        if (['ArrowRight','ArrowLeft','Home','End'].includes(e.key)){
+          e.preventDefault();
+          let next = idx + (e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0);
+          if (e.key==='Home') next = 0;
+          if (e.key==='End') next = tabs.length-1;
+          tabs[(next+tabs.length)%tabs.length].focus();
+        }
+      });
+      document.querySelectorAll('[data-tab]').forEach(btn => { btn.addEventListener('click', () => activateTab(btn.dataset.tab)); });
+      activateTab('details');
+    }
+      
+      /* ============================== *
+ *  Actions tab (list + modal)    *
+ * ============================== */
+let ACTION_SORT = { key: 'updatedAt', dir: 'desc' };
+
+const actionComparators = {
+  title: (a,b)=> (a.title||'').localeCompare(b.title||'',undefined,{sensitivity:'base'}),
+  status:(a,b)=> (a.status||'').localeCompare(b.status||'',undefined,{sensitivity:'base'}),
+  owner: (a,b)=> (a.owner||'').localeCompare(b.owner||'',undefined,{sensitivity:'base'}),
+  updatedAt:(a,b)=> new Date(a.updatedAt||0) - new Date(b.updatedAt||0),
+};
+function sortActions(rows){
+  const cmp = actionComparators[ACTION_SORT.key] || actionComparators.updatedAt;
+  const out = rows.slice().sort(cmp);
+  return ACTION_SORT.dir === 'desc' ? out.reverse() : out;
+}
+function filterActionsBySearch(rows){
+  const q = normalize(LIST_SEARCH).trim();
+  if (!q) return rows;
+  return rows.filter(a => normalize(a.title).includes(q) || normalize(a.owner).includes(q) || normalize(a.status).includes(q));
+}
+function actionRowHTML(a){
+  const swatch = a.color ? `<span class="inline-block w-3 h-3 rounded" style="background:${a.color}"></span>` : '';
+  const when = a.updatedAt ? new Date(a.updatedAt).toLocaleString() : '';
+  return `<tr class="border-b hover:bg-slate-50" data-action-id="${a.id}">
+    <td class="py-2 pr-4"><div class="flex items-center gap-2">${swatch}<span class="font-medium">${escapeHtml(a.title||'')}</span></div></td>
+    <td class="py-2 pr-4">${escapeHtml(a.status||'')}</td>
+    <td class="py-2 pr-4">${escapeHtml(a.owner||'')}</td>
+    <td class="py-2 pr-4 text-slate-500">${escapeHtml(when)}</td>
+    <td class="py-2 pr-4">
+      <button class="px-2 py-1 rounded-lg border mr-1" data-action="action-edit" data-id="${a.id}">Edit</button>
+      <button class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700" data-action="action-del" data-id="${a.id}">Delete</button>
+    </td>
+  </tr>`;
+}
+async function renderActionsList(){
+  const root = el('hazardsAccordion');
+  const actions = await SessionStore.getAllActions();
+  const rows = sortActions(filterActionsBySearch(actions));
+  root.innerHTML = `
+    <div class="actions-toolbar">
+      <div class="text-sm text-slate-500">Actions • ${actions.length}</div>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm" data-action="action-add">+ Add Action</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm" id="actionsTable">
+        <thead>
+          <tr class="text-left">
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="title" type="button">Title</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="status" type="button">Status</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="owner" type="button">Owner</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-asort="updatedAt" type="button">Updated</button></th>
+            <th class="py-2 pr-4">Controls</th>
+          </tr>
+        </thead>
+        <tbody class="tbody-fade">
+          ${rows.map(actionRowHTML).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  updateActionSortIndicators();
+}
+function updateActionSortIndicators(){
+  const tbl = document.getElementById('actionsTable'); if (!tbl) return;
+  tbl.querySelectorAll('.th-sort').forEach(btn=>{
+    const key = btn.getAttribute('data-asort');
+    const base = btn.dataset.baseLabel || btn.textContent.replace(/[▲▼]\s*$/,'').trim();
+    btn.dataset.baseLabel = base;
+    let suffix = '';
+    if (ACTION_SORT.key === key) suffix = (ACTION_SORT.dir === 'asc' ? ' ▲' : ' ▼');
+    btn.textContent = base + suffix;
+    btn.closest('th')?.setAttribute('aria-sort',
+      ACTION_SORT.key===key ? (ACTION_SORT.dir==='asc'?'ascending':'descending') : 'none');
+  });
+}
+
+/* Action modal helpers */
+let editingActionId = null;
+function openActionModal(id=null){
+  editingActionId = id;
+  const modal = el('actionModal');
+  const title = el('actionModalTitle');
+  if (id==null){
+    title.textContent = 'Add Action';
+    el('actionTitleInput').value = '';
+    el('actionOwnerInput').value = '';
+    el('actionStatusInput').value = 'Planned';
+    el('actionColorInput').value = '#2563eb';
+    el('actionDescInput').value = '';
+  } else {
+    SessionStore.getAllActions().then(list=>{
+      const a = list.find(x=>x.id===id); if (!a) return;
+      title.textContent = 'Edit Action';
+      el('actionTitleInput').value = a.title||'';
+      el('actionOwnerInput').value = a.owner||'';
+      el('actionStatusInput').value = a.status||'Planned';
+      el('actionColorInput').value = a.color||'#2563eb';
+      el('actionDescInput').value = a.description||'';
+    });
+  }
+  el('actionOkBtn').onclick = async () => {
+    const rec = {
+      ...(editingActionId!=null ? { id: editingActionId } : {}),
+      title: el('actionTitleInput').value.trim() || 'Untitled Action',
+      owner: el('actionOwnerInput').value.trim(),
+      status: el('actionStatusInput').value,
+      color: el('actionColorInput').value,
+      description: el('actionDescInput').value.trim()
+    };
+    if (editingActionId==null) await SessionStore.addAction(rec);
+    else await SessionStore.putAction(rec);
+    closeModal(modal);
+    await recomputeDirtyAgainstSnapshot();
+    renderActionsList();
+  };
+  el('actionCancelBtn').onclick = () => closeModal(modal);
+  openModal(modal, '#actionTitleInput');
+}
+
+
+    /* ============================== *
+     *  RTE                           *
+     * ============================== */
+    function exec(cmd, val = null) { document.execCommand(cmd, false, val); el('descEditor').focus(); markDirtySoon(); }
+
+    // Plain-text paste to avoid unsafe HTML
+    function sanitizePaste(e){
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain') || '';
+      if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+        document.execCommand('insertText', false, text);
+      } else {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(document.createTextNode(text));
+        range.collapse(false);
+        sel.removeAllRanges(); sel.addRange(range);
+      }
+      markDirtySoon();
+    }
+
+    function wireRte() {
+      const tb = document.querySelector('.rte-toolbar');
+      if (!tb) return;
+      tb.addEventListener('click', (e) => {
+        const btn = e.target.closest('button'); if (!btn) return;
+        if (btn.hasAttribute('data-cmd')) exec(btn.getAttribute('data-cmd'));
+        else if (btn.hasAttribute('data-link')) {
+          const url = prompt('Enter URL (https://…):');
+          if (url) exec('createLink', safeUrl(url));
+        } else if (btn.hasAttribute('data-clear')) {
+          if (confirm('Clear description?')) { el('descEditor').innerHTML = ''; ensureTrailingParagraph(); markDirtySoon(); }
+        }
+      });
+      el('descEditor').addEventListener('input', markDirtySoon);
+      el('descEditor').addEventListener('paste', sanitizePaste);
+    }
+
+    /* ============================== *
+     *  Dirty helpers                 *
+     * ============================== */
+    let markDirtyTimer = null;
+    function markDirty() { fileDirty = true; refreshStatus(); }
+    function markDirtySoon() { clearTimeout(markDirtyTimer); markDirtyTimer = setTimeout(markDirty, 150); }
+
+    /* ============================== *
+     *  File helpers (.litl)          *
+     * ============================== */
+    function createLitlBlob(items, hazards, actions) {
+      const litl = { litlVersion: 1, appId: 'crr-v1', title: 'Community Risk Register', data: { items, hazards, actions } };
+      return new Blob([JSON.stringify(litl, null, 2)], { type: 'application/x-litl' });
+    }
+      
+    async function openLitlWithPicker() {
+      const [handle] = await window.showOpenFilePicker({ multiple: false, types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }] });
+      currentFileHandle = handle;
+      currentFileName = handle.name || 'untitled.litl';
+      const file = await handle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const payload = data?.data
+        ? { items: Array.isArray(data.data.items) ? data.data.items : [],
+            hazards: Array.isArray(data.data.hazards) ? data.data.hazards : [],
+            actions: Array.isArray(data.data.actions) ? data.data.actions : [] }
+        : { items: Array.isArray(data.items) ? data.items : [],
+            hazards: Array.isArray(data.hazards) ? data.hazards : [],
+            actions: Array.isArray(data.actions) ? data.actions : [] };
+      SessionStore.setAll(payload);
+      refreshHazardsAccordion();
+      switchToList();
+      await updateSavedSnapshot();
+      updateFileMenuState();
+    }
+    function openLitlWithInput(file) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const json = JSON.parse(reader.result);
+          const payload = json?.data
+            ? { items: Array.isArray(json.data.items) ? json.data.items : [],
+                hazards: Array.isArray(json.data.hazards) ? json.data.hazards : [],
+                actions: Array.isArray(json.data.actions) ? json.data.actions : [] }
+            : { items: Array.isArray(json.items) ? json.items : [],
+                hazards: Array.isArray(json.hazards) ? json.hazards : [],
+                actions: Array.isArray(json.actions) ? json.actions : [] };
+          currentFileHandle = null;
+          currentFileName = file.name || 'loaded.litl';
+          SessionStore.setAll(payload);
+          refreshHazardsAccordion();
+          switchToList();
+          await updateSavedSnapshot();
+          updateFileMenuState();
+        } catch (err) { console.error(err); alert('Invalid .litl file.'); }
+      };
+      reader.readAsText(file);
+    }
+    async function saveLitl() {
+      try {
+        saving = true; refreshStatus();
+        const [items, hazards, actions] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards(), SessionStore.getAllActions()]);
+        const blob = createLitlBlob(items, hazards, actions);
+        if (canSave()) {
+          const writable = await currentFileHandle.createWritable();
+          await writable.write(blob); await writable.close();
+          await updateSavedSnapshot(); saving = false; refreshStatus(); return;
+        }
+        await saveLitlAs(); saving = false; refreshStatus();
+      } catch (err) { console.error('Save .litl failed', err); saving = false; refreshStatus(); alert('Save failed: ' + (err?.message || err)); }
+    }
+    async function saveLitlAs() {
+      try {
+        saving = true; refreshStatus();
+        const [items, hazards, actions] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards(), SessionStore.getAllActions()]);
+        const blob = createLitlBlob(items, hazards, actions);
+        if (window.showSaveFilePicker) {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: currentFileName || 'community_risk_register.litl',
+            types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }]
+          });
+          currentFileHandle = handle; currentFileName = handle.name || 'community_risk_register.litl';
+          const writable = await handle.createWritable(); await writable.write(blob); await writable.close();
+          await updateSavedSnapshot(); updateFileMenuState(); saving = false; refreshStatus(); return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = currentFileName || 'community_risk_register.litl';
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (!currentFileName) currentFileName = 'community_risk_register.litl';
+        await updateSavedSnapshot(); updateFileMenuState(); saving = false; refreshStatus();
+      } catch (err) { console.error('Save As .litl failed', err); saving = false; refreshStatus(); alert('Save As failed: ' + (err?.message || err)); }
+    }
+    function newRegister() {
+      SessionStore.setAll({ items: [], hazards: [], actions: [] });
+      currentFileHandle = null;
+      currentFileName = null;
+      refreshHazardsAccordion();
+      switchToList();
+      lastSavedSnapshot = '';
+      fileDirty = true;
+      updateFileMenuState();
+      refreshStatus();
+    }
+
+    /* ============================== *
+     *  File menu wiring              *
+     * ============================== */
+    function wireFileMenu() {
+      const root = document.getElementById('fileMenuRoot');
+      const btn = document.getElementById('fileMenuBtn');
+      const panel = document.getElementById('fileMenuPanel');
+      const openInput = document.getElementById('openLitlInput');
+      function closeMenu() { root.classList.remove('menu-open'); panel.classList.add('hidden'); }
+      function openMenu() { root.classList.add('menu-open'); panel.classList.remove('hidden'); }
+      btn.addEventListener('click', (e) => { e.stopPropagation(); if (root.classList.contains('menu-open')) closeMenu(); else openMenu(); });
+      document.addEventListener('click', closeMenu);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+      document.getElementById('menuNew').addEventListener('click', () => { closeMenu(); newRegister(); });
+      document.getElementById('menuOpen').addEventListener('click', async () => {
+        closeMenu();
+        try { if (window.showOpenFilePicker) await openLitlWithPicker(); else openInput.click(); }
+        catch (err) { if (err?.name !== 'AbortError') { console.error(err); } }
+      });
+      openInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) openLitlWithInput(f); e.target.value = ''; });
+      document.getElementById('menuSave').addEventListener('click', async () => { closeMenu(); await saveLitl(); });
+      document.getElementById('menuSaveAs').addEventListener('click', async () => { closeMenu(); await saveLitlAs(); });
+      document.addEventListener('keydown', (e) => {
+        const ctrl = e.ctrlKey || e.metaKey;
+        if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); saveLitl(); }
+        if (ctrl && e.key.toLowerCase() === 'o') { e.preventDefault(); if (window.showOpenFilePicker) openLitlWithPicker(); else openInput.click(); }
+        if (ctrl && e.key.toLowerCase() === 'n') { e.preventDefault(); newRegister(); }
+      });
+      updateFileMenuState();
+    }
+
+    /* ============================== *
+     *  List tabs + search wiring     *
+     * ============================== */
+    function updateListTabsUI() {
+      document.querySelectorAll('[data-listtab]').forEach(b => {
+        const on = (b.getAttribute('data-listtab') === LIST_VIEW_MODE);
+        b.classList.toggle('tab-btn-active', on);
+        b.classList.toggle('tab-btn-inactive', !on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    const applySearch = makeDebounced(() => {
+      const searchEl = el('listSearch');
+      LIST_SEARCH = (searchEl?.value || '');
+      if (LIST_SEARCH.trim() && LIST_VIEW_MODE !== 'actions') {
+        LIST_VIEW_MODE = 'all';
+        updateListTabsUI();
+      }
+      renderListView();
+    }, 120);
+
+    /* ============================== *
+     *  Event delegation (list area)  *
+     * ============================== */
+    function wireListDelegation() {
+      const listRoot = el('hazardsAccordion');
+      if (!listRoot) return;
+      listRoot.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button');
+        if (btn?.dataset?.action) {
+          e.stopPropagation();
+          const action = btn.dataset.action;
+          const id = Number(btn.dataset.id);
+          if (action === 'del') {
+            if (!confirm('Delete this hazardous event? This cannot be undone.')) return;
+            await SessionStore.delete(id);
+            await recomputeDirtyAgainstSnapshot();
+            renderListView();
+            return;
+          }
+        
+        // Actions tab: main controls
+          if (btn?.dataset?.action === 'action-add') { openActionModal(null); return; }
+          if (btn?.dataset?.action === 'action-edit') { openActionModal(Number(btn.dataset.id)); return; }
+          if (btn?.dataset?.action === 'action-del') {
+            if (!confirm('Delete this action?')) return;
+            await SessionStore.deleteAction(Number(btn.dataset.id));
+            await recomputeDirtyAgainstSnapshot();
+            renderActionsList();
+            return;
+          }
+        
+          if (action === 'dup') { duplicateEvent(id); return; }
+          if (action === 'edit') { loadEvent(id); return; }
+          if (action === 'haz-rename') {
+            const hid = btn.dataset.id === 'null' ? null : Number(btn.dataset.id);
+            if (hid === null) { alert('Cannot rename the Uncategorised group.'); return; }
+            const hzs = await SessionStore.getAllHazards();
+            const hz = hzs.find(z => z.id === hid);
+            if (!hz) return;
+            const t = prompt('Rename hazard:', hz.title);
+            if (t && t.trim()) { await SessionStore.putHazard({ id: hid, title: t.trim() }); await recomputeDirtyAgainstSnapshot(); refreshHazardsAccordion(); }
+            return;
+          }
+          if (action === 'haz-delete') {
+            const hid = btn.dataset.id === 'null' ? null : Number(btn.dataset.id);
+            if (hid === null) { alert('Uncategorised cannot be deleted.'); return; }
+            if (!confirm('Delete this hazard? All associated events will be moved to Uncategorised.')) return;
+            await SessionStore.deleteHazard(hid);
+            await recomputeDirtyAgainstSnapshot();
+            refreshHazardsAccordion();
+            return;
+          }
+        }
+        const sortBtn = e.target.closest('.th-sort');
+        if (sortBtn) {
+          e.preventDefault();
+          const key = sortBtn.getAttribute('data-sort');
+          if (EVENT_SORT.key === key) EVENT_SORT.dir = (EVENT_SORT.dir === 'asc' ? 'desc' : 'asc');
+          else { EVENT_SORT.key = key; EVENT_SORT.dir = (key === 'score' ? 'desc' : 'asc'); }
+          updateSortIndicators(listRoot);
+          if (LIST_VIEW_MODE === 'all') await resortAllEventsInPlace(); else await resortAllTablesInPlace();
+          return;
+        }
+    
+      const aSortBtn = e.target.closest('.th-sort[data-asort]');
+      if (aSortBtn) {
+        e.preventDefault();
+        const key = aSortBtn.getAttribute('data-asort');
+        if (ACTION_SORT.key === key) ACTION_SORT.dir = (ACTION_SORT.dir === 'asc' ? 'desc' : 'asc');
+        else { ACTION_SORT.key = key; ACTION_SORT.dir = (key === 'updatedAt' ? 'desc' : 'asc'); }
+        updateActionSortIndicators();
+        renderActionsList();
+        return;
+      }
+    
+        const tr = e.target.closest('tbody tr[data-id]');
+        if (tr && !btn) loadEvent(Number(tr.dataset.id));
+      });
+    }
+
+    /* ============================== *
+     *  Mitigation buttons wiring     *
+     * ============================== */
+    function wireMitigationDelegation() {
+      const root = el('mitigationsList');
+      if (!root) return;
+      root.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-mit]');
+        if (!btn) return;
+        const idx = Number(btn.dataset.index || btn.closest('[data-mitigation-index]')?.getAttribute('data-mitigation-index'));
+        if (Number.isNaN(idx)) return;
+        if (btn.dataset.mit === 'edit') { openMitigationModal(idx); markDirtySoon(); }
+        if (btn.dataset.mit === 'del') {
+          if (!confirm('Delete this mitigation?')) return;
+          planMitigations.splice(idx, 1);
+          renderMitigationsList(); renderPlanGaps(); markDirtySoon();
+        }
+      });
+    }
+
+    /* ============================== *
+     *  Add / Duplicate helpers       *
+     * ============================== */
+    function duplicateEvent(id) {
+      SessionStore.get(id).then(r => {
+        if (!r) return;
+        const { id: _omit, createdAt: __omit, ...rest } = r;
+        const copy = { ...rest, title: r.title + ' (copy)', createdAt: new Date().toISOString() };
+        return SessionStore.add(copy);
+      }).then(async () => {
+        refreshHazardsAccordion();
+        await recomputeDirtyAgainstSnapshot();
+      }).catch(err => { console.error('Duplicate failed', err); alert('Duplicate failed: ' + (err?.message || err)); });
+    }
+
+    /* ===== Chart helpers (Bar, Pie, Line) ===== */
+    function makeEmptyPara() { const p = document.createElement('p'); p.innerHTML = '<br>'; return p; }
+    function placeCaretIn(elm, atEnd = false) {
+      const sel = window.getSelection(); const r = document.createRange();
+      r.selectNodeContents(elm); r.collapse(!atEnd); sel.removeAllRanges(); sel.addRange(r);
+    }
+    function ensureRoomAroundFigure(fig) {
+      const ed = document.getElementById('descEditor'); if (!ed) return;
+      const prev = fig.previousSibling; if (!(prev && prev.nodeType === 1 && prev.tagName === 'P')) { ed.insertBefore(makeEmptyPara(), fig); }
+      const next = fig.nextSibling; if (!(next && next.nodeType === 1 && next.tagName === 'P')) { if (fig.nextSibling) ed.insertBefore(makeEmptyPara(), fig.nextSibling); else ed.appendChild(makeEmptyPara()); }
+    }
+    function ensureTrailingParagraph() {
+      const ed = document.getElementById('descEditor'); if (!ed) return;
+      const last = ed.lastElementChild;
+      const isEmptyPara = (el) => el && el.tagName === 'P' && (el.innerHTML === '' || el.innerHTML === '<br>');
+      if (!isEmptyPara(last)) ed.appendChild(makeEmptyPara());
+    }
+    function sizeCanvasToParentWidth(canvas, desiredHeightPx) {
+      const dpr = window.devicePixelRatio || 1;
+      const parent = canvas.parentElement || canvas;
+      const cssW = Math.max(260, Math.floor(parent.getBoundingClientRect().width || 600));
+      const cssH = Math.max(120, Number(desiredHeightPx) || 320);
+      canvas.style.width = '100%'; canvas.style.height = cssH + 'px';
+      canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
+      const ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,cssW,cssH);
+      return { ctx, W: cssW, H: cssH };
+    }
+    function parseCSVishLines(txt) {
+      const lines = (txt || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const labels = [], values = [];
+      for (const line of lines) {
+        const m = line.match(/^\s*(?:"([^"]+)"|([^,]+))\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+        if (!m) continue;
+        const label = (m[1] ?? m[2] ?? '').trim();
+        const val = Number(m[3]);
+        if (!Number.isFinite(val)) continue;
+        labels.push(label); values.push(val);
+      }
+      return { labels, values };
+    }
+    function drawBarChart(canvas, spec) {
+      const { labels, values, h } = spec;
+      const { ctx, W, H } = sizeCanvasToParentWidth(canvas, h);
+      const pad = { t: 16, r: 12, b: 44, l: 40 };
+      const plotW = W - pad.l - pad.r;
+      const plotH = H - pad.t - pad.b;
+      const maxV = Math.max(1, Math.max(...values, 0));
+      const n = values.length, gap = 10;
+      const barW = Math.max(6, (plotW - gap*(n-1)) / Math.max(1,n));
+      ctx.strokeStyle = '#CBD5E1'; ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + plotH); ctx.lineTo(pad.l + plotW, pad.t + plotH); ctx.stroke();
+      ctx.fillStyle = 'rgba(99,102,241,0.85)';
+      values.forEach((v, i) => { const x = pad.l + i*(barW + gap); const h = (v / maxV) * (plotH - 1); const y = pad.t + plotH - h; ctx.fillRect(x, y, barW, h); });
+      ctx.fillStyle = '#475569'; ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      labels.forEach((lab, i) => { const x = pad.l + i*(barW + gap) + barW/2; const text = lab.length > 20 ? (lab.slice(0,17)+'…') : lab; ctx.fillText(text, x, pad.t + plotH + 6); });
+    }
+    function drawPieChart(canvas, spec) {
+      const { labels, values, h } = spec;
+      const { ctx, W, H } = sizeCanvasToParentWidth(canvas, h);
+      const cx = W/2, cy = H/2, r = Math.min(W,H)*0.35;
+      const sum = values.reduce((a,b)=>a+b,0) || 1; let start = -Math.PI/2;
+      values.forEach((v, i) => { const frac = v / sum, end = start + frac * Math.PI * 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath(); ctx.fillStyle = `hsl(${(i*53)%360} 70% 55% / 0.85)`; ctx.fill(); start = end; });
+      const lx = Math.min(W - 140, cx + r + 20); let ly = Math.max(20, cy - 0.5 * values.length * 18);
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      labels.forEach((lab, i) => { ctx.fillStyle = `hsl(${(i*53)%360} 70% 45%)`; ctx.fillRect(lx, ly + 2, 10, 10); ctx.fillStyle = '#334155'; const text = lab.length > 24 ? lab.slice(0,21)+'…' : lab; ctx.fillText(text, lx + 16, ly); ly += 18; });
+    }
+    function drawLineChart(canvas, spec) {
+      const { labels, values, h } = spec;
+      const { ctx, W, H } = sizeCanvasToParentWidth(canvas, h);
+      const pad = { t: 16, r: 16, b: 44, l: 44 };
+      const plotW = W - pad.l - pad.r; const plotH = H - pad.t - pad.b;
+      if (!values.length) return;
+      const minV = Math.min(...values); const maxV = Math.max(...values); const span = (maxV - minV) || 1;
+      const xAt = (i) => pad.l + (i/(Math.max(1, values.length-1))) * plotW;
+      const yAt = (v) => pad.t + plotH - ((v - minV)/span) * plotH;
+      ctx.strokeStyle = '#CBD5E1'; ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + plotH); ctx.lineTo(pad.l + plotW, pad.t + plotH); ctx.stroke();
+      ctx.strokeStyle = '#E2E8F0';
+      for (let g=1; g<=4; g++){ const y = pad.t + (plotH * g/4); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + plotW, y); ctx.stroke(); }
+      ctx.strokeStyle = 'rgba(99,102,241,0.95)'; ctx.lineWidth = 2; ctx.beginPath();
+      values.forEach((v,i) => { const x = xAt(i), y = yAt(v); if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke();
+      ctx.fillStyle = 'rgba(99,102,241,0.95)';
+      values.forEach((v,i) => { const x = xAt(i), y = yAt(v); ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill(); });
+      ctx.fillStyle = '#475569'; ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      const step = Math.ceil(labels.length / 8);
+      labels.forEach((lab,i) => { if (i % step !== 0 && i !== labels.length-1) return; const text = lab.length > 20 ? lab.slice(0,17)+'…' : lab; ctx.fillText(text, xAt(i), pad.t + plotH + 6); });
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(String(minV), pad.l - 6, yAt(minV)); ctx.fillText(String(maxV), pad.l - 6, yAt(maxV));
+    }
+    function renderChart(canvas) {
+      if (!canvas) return;
+      const specStr = canvas.dataset.spec; if (!specStr) return;
+      let spec; try { spec = JSON.parse(specStr); } catch { return; }
+      const t = spec.type || 'bar';
+      if (t === 'pie') return drawPieChart(canvas, spec);
+      if (t === 'line') return drawLineChart(canvas, spec);
+      return drawBarChart(canvas, spec);
+    }
+    function renderAllCharts(root = document) { root.querySelectorAll('figure.rte-chart canvas[data-spec]').forEach(renderChart); }
+    function openChartModal(existingFigure) {
+      const modal = document.getElementById('chartModal'); const ok = document.getElementById('chartOkBtn'); const cancel = document.getElementById('chartCancelBtn');
+      function close(){ closeModal(modal); ok.onclick = null; cancel.onclick = null; }
+      if (existingFigure) {
+        const canvas = existingFigure.querySelector('canvas[data-spec]'); const cap = existingFigure.querySelector('figcaption');
+        try { const spec = JSON.parse(canvas.dataset.spec);
+          document.getElementById('chartType').value = spec.type || 'bar';
+          document.getElementById('chartTitle').value = cap?.textContent || '';
+          document.getElementById('chartH').value = spec.h || 320;
+          	const lines = spec.labels.map((lab,i) => {
+						const needsQuotes = /[",]/.test(lab);
+						const safe = needsQuotes ? `"${lab.replace(/"/g,'""')}"` : lab;
+						return `${safe}, ${spec.values[i] ?? 0}`;
+						}).join('\n');
+          document.getElementById('chartData').value = lines;
+        } catch {}
+      } else {
+        document.getElementById('chartType').value = 'bar';
+        document.getElementById('chartTitle').value = '';
+        document.getElementById('chartData').value = '';
+        document.getElementById('chartH').value = 320;
+      }
+      ok.onclick = () => {
+        const type = document.getElementById('chartType').value;
+        const title = document.getElementById('chartTitle').value.trim();
+        const { labels, values } = parseCSVishLines(document.getElementById('chartData').value);
+        const h = parseInt(document.getElementById('chartH').value, 10) || 320;
+        if (!labels.length) { alert('Please enter at least one "Label, Value" line.'); return; }
+        const spec = { type, labels, values, h };
+        if (existingFigure) {
+          const canvas = existingFigure.querySelector('canvas[data-spec]');
+          const cap = existingFigure.querySelector('figcaption');
+          canvas.dataset.spec = JSON.stringify(spec);
+          if (cap) cap.textContent = title || '';
+          renderChart(canvas);
+          ensureRoomAroundFigure(existingFigure); ensureTrailingParagraph();
+        } else {
+          const fig = document.createElement('figure');
+          fig.className = 'rte-chart'; fig.setAttribute('contenteditable', 'false'); fig.tabIndex = 0;
+          const canvas = document.createElement('canvas'); canvas.dataset.spec = JSON.stringify(spec); fig.appendChild(canvas);
+          const cap = document.createElement('figcaption'); cap.textContent = title || ''; fig.appendChild(cap);
+          const sel = window.getSelection(); const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+          const editor = document.getElementById('descEditor');
+          if (range && editor.contains(range.startContainer)) { range.collapse(true); range.insertNode(fig); }
+          else { editor.appendChild(fig); }
+          renderChart(canvas); ensureRoomAroundFigure(fig); ensureTrailingParagraph();
+        }
+        markDirtySoon(); close();
+      };
+      cancel.onclick = close;
+      openModal(modal, '#chartType');
+    }
+    function enhanceRTEWithCharts() {
+      const editor = document.getElementById('descEditor'); const tb = document.querySelector('.rte-toolbar'); const chartBtn = tb.querySelector('[data-chart]');
+      if (chartBtn) chartBtn.addEventListener('click', () => openChartModal(null));
+      editor.addEventListener('dblclick', (e) => {
+        const fig = e.target.closest('figure.rte-chart');
+        if (fig && editor.contains(fig)) { e.preventDefault(); openChartModal(fig); }
+      });
+      editor.addEventListener('keydown', (e) => {
+        const fig = document.activeElement && document.activeElement.closest?.('figure.rte-chart'); if (!fig) return;
+        if (e.key === 'Enter') { e.preventDefault(); const p = makeEmptyPara(); if (e.shiftKey) { fig.parentNode.insertBefore(p, fig); } else { if (fig.nextSibling) fig.parentNode.insertBefore(p, fig.nextSibling); else fig.parentNode.appendChild(p); } placeCaretIn(p, false); ensureTrailingParagraph(); }
+      });
+      editor.addEventListener('input', ensureTrailingParagraph);
+      window.addEventListener('resize', () => { renderAllCharts(editor); ensureTrailingParagraph(); });
+    }
+
+    /* ============================== *
+     *  Wire page                     *
+     * ============================== */
+    function wire() {
+      buildCategoryBlocks();
+      wireTabs();
+      wireRte();
+      enhanceRTEWithCharts();
+      wireFileMenu();
+      wireListDelegation();
+      wireMitigationDelegation();
+
+      // Chips add buttons
+      CFG.categories.forEach(c => {
+        const mitAdd = el(`mit_${c.key}_add`);
+        const mitInp = el(`mit_${c.key}_input`);
+        if (mitAdd) mitAdd.addEventListener('click', () => { const t = (mitInp?.value || '').trim(); if (!t) return; addTag('mit', c.key, t, ''); mitInp.value = ''; });
+        if (mitInp) mitInp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); mitAdd?.click(); } });
+
+        const gapAdd = el(`gap_${c.key}_add`);
+        const gapInp = el(`gap_${c.key}__input`);
+        if (gapAdd) gapAdd.addEventListener('click', () => { const t = (gapInp?.value || '').trim(); if (!t) return; addTag('gap', c.key, t, ''); gapInp.value = ''; });
+        if (gapInp) gapInp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); gapAdd?.click(); } });
+
+        const chk = el('en_' + c.key);
+        if (chk) chk.addEventListener('change', () => { toggleSectionBody(c.key, chk.checked); recalc(); renderPlanGaps(); markDirtySoon(); });
+      });
+
+      // Score inputs + guidance
+      CFG.categories.forEach(c => c.sub.forEach(sf => {
+        const inp = el(sf.id);
+        inp.addEventListener('input', () => { recalc(); markDirtySoon(); });
+        if (GUIDANCE[sf.id]) {
+          const panelId = 'g_' + sf.id;
+          inp.addEventListener('focus', () => { showGuide(panelId); updateGuidanceHighlight(sf.id); });
+          inp.addEventListener('input', () => updateGuidanceHighlight(sf.id));
+          inp.addEventListener('change', () => updateGuidanceHighlight(sf.id));
+          inp.addEventListener('blur', () => hideGuide(panelId));
+        }
+      }));
+      el(CFG.likelihoodId).addEventListener('input', () => { recalc(); markDirtySoon(); });
+      CFG.categories.forEach(c => el('eff_' + c.key).addEventListener('input', () => { recalc(); markDirtySoon(); }));
+
+      // Top buttons
+      el('addHazardBtn').addEventListener('click', () => {
+        const t = prompt('New hazard title:');
+        if (!t || !t.trim()) return;
+        SessionStore.addHazard(t.trim()).then(async () => {
+          refreshHazardsAccordion();
+          await recomputeDirtyAgainstSnapshot();
+          populateHazardSelect(editingHazardId);
+        });
+      });
+
+      el('addEventBtn').addEventListener('click', () => {
+        editingId = null; el('riskTitle').value = ''; el('statusSel').value = 'Tolerate';
+        el('descEditor').innerHTML = ''; setLinks([]);
+        renderAllCharts(el('descEditor')); ensureTrailingParagraph();
+        CFG.categories.forEach(c => {
+          c.sub.forEach(sf => el(sf.id).value = 3);
+          if (el('eff_' + c.key)) el('eff_' + c.key).value = 1;
+          setMitigations(c.key, []); setGaps(c.key, []);
+          const chk = el('en_' + c.key); if (chk) { chk.checked = false; toggleSectionBody(c.key, false); }
+        });
+        el(CFG.likelihoodId).value = 3; recalc();
+        el('narrative').textContent = 'Press Generate Narrative to produce a tailored summary.';
+        populateHazardSelect(editingHazardId);
+        planMitigations = []; renderMitigationsList(); renderPlanGaps();
+        activateTab('details');
+        switchToEditor();
+      });
+
+      // Plan buttons
+      el('addMitigationBtn').addEventListener('click', () => openMitigationModal(null));
+      el('generateBtn').addEventListener('click', genNarrative);
+      el('saveBtn').addEventListener('click', async () => { saveCurrent(); await recomputeDirtyAgainstSnapshot(); });
+      el('backToListBtn').addEventListener('click', () => switchToList());
+      el('cancelBtn').addEventListener('click', () => switchToList());
+      el('resetBtn').addEventListener('click', () => { if (!editingId) return; loadEvent(editingId); });
+
+      const addLinkBtn = el('addLinkBtn');
+      if (addLinkBtn) addLinkBtn.addEventListener('click', () => openLinkModal('Add Link'));
+
+      // List tabs
+      document.querySelectorAll('[data-listtab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          LIST_VIEW_MODE = btn.getAttribute('data-listtab');
+          updateListTabsUI();
+          renderListView();
+        });
+      });
+
+      // Search (debounced)
+      const searchEl = el('listSearch');
+      const clearEl = el('listSearchClear');
+      if (searchEl) searchEl.addEventListener('input', applySearch);
+      if (clearEl) clearEl.addEventListener('click', () => { searchEl.value = ''; LIST_SEARCH = ''; applySearch(); });
+
+      // Debounced radar redraw on resize
+      window.addEventListener('resize', makeDebounced(() => recalc(), 120));
+
+      refreshHazardsAccordion();
+      switchToList();
+      recalc();
+      refreshStatus();
+      importFromHash();
+    }
+
+    /* ============================== *
+     *  Unload guard & boot           *
+     * ============================== */
+    window.addEventListener('beforeunload', (e) => { if (fileDirty) { e.preventDefault(); e.returnValue = ''; } });
+    wire();
+  })();
+  </script>
+</body>
+</html>
