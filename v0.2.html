@@ -110,7 +110,6 @@
     .pill-amber { background: #fef3c7; color: #92400e; border-color: #fde68a; }
     .pill-muted { background: transparent; color: #475569; border-color: #cbd5e1; opacity: .75; }
     
-    /* Gap selector "buttons" in the modal use the same radius */
     .gap-pill {
       padding: .25rem .5rem;
       border-radius: .75rem;
@@ -127,7 +126,7 @@
     .pulse-dot { width:.5rem; height:.5rem; border-radius:9999px; display:inline-block; margin-right:.5rem; animation:pulse 1.2s ease-in-out infinite; }
     @keyframes pulse { 0%{transform:scale(1);opacity:1} 50%{transform:scale(.6);opacity:.6} 100%{transform:scale(1);opacity:1} }
 
-    /* Screen-reader only utility (for radar data table) */
+    /* Screen-reader only utility */
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 
     /* ===== Gantt styles (Actions tab) ===== */
@@ -171,31 +170,41 @@
       <p class="text-slate-600 mb-3">
         Manage <strong>Hazards</strong> and their <strong>Hazardous Events</strong>. Enter scores (1–5) across the seven NFCC-aligned dimensions. We'll roll them up and auto-generate a narrative.
       </p>
-      <div class="flex flex-wrap items-center gap-3">
-        <button id="addHazardBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium">Add Hazard</button>
-        <button id="addEventBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add Hazardous Event</button>
+      <!-- old top buttons removed (moved into Risks toolbar) -->
+      <div class="flex flex-wrap items-center gap-3 hidden">
+        <button id="addHazardBtn_legacy" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium">Add Hazard</button>
+        <button id="addEventBtn_legacy" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add Hazardous Event</button>
       </div>
     </header>
 
     <!-- ===== List View ===== -->
     <section id="listView" class="mb-6">
       <div class="bg-white rounded-2xl shadow p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xl font-semibold">Hazards</h2>
-          <div class="text-sm text-slate-500">Expand a hazard to view and edit its hazardous events</div>
-        </div>
-
-        <!-- List view tabs + search -->
-        <div class="flex items-center justify-between mb-3">
-          <div class="tabs" id="listTabs" role="tablist" aria-label="List view mode">
-            <button class="tab-btn tab-btn-active" role="tab" aria-selected="true" data-listtab="grouped">Grouped by Hazard</button>
-            <button class="tab-btn" role="tab" aria-selected="false" data-listtab="all">All Events</button>
+        <div class="mb-3">
+          <div class="tabs" id="listTabs" role="tablist" aria-label="Main list tabs">
+            <button class="tab-btn tab-btn-active" role="tab" aria-selected="true" data-listtab="risks">Risks</button>
             <button class="tab-btn" role="tab" aria-selected="false" data-listtab="actions">Actions</button>
           </div>
-          <div class="relative">
-            <label for="listSearch" class="sr-only">Search event titles</label>
-            <input id="listSearch" type="search" placeholder="Search event titles…" class="px-3 py-2 rounded-xl border w-64" />
-            <button id="listSearchClear" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search" title="Clear search" type="button">×</button>
+
+          <!-- Risks toolbar -->
+          <div id="risksToolbar" class="mt-2 flex flex-wrap items-center gap-3 justify-between">
+            <div class="flex items-center gap-2 flex-wrap">
+              <label for="risksModeSelect" class="text-sm text-slate-600">Display</label>
+              <select id="risksModeSelect" class="px-2 py-1 rounded-lg border text-sm">
+                <option value="all" selected>All Events</option>
+                <option value="grouped">Grouped by Hazard</option>
+              </select>
+
+              <!-- Add buttons inside the Risks tab -->
+              <button id="addHazardBtn" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm">+ Add Hazard</button>
+              <button id="addEventBtn" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm">+ Add Hazardous Event</button>
+            </div>
+
+            <div class="relative">
+              <label for="listSearch" class="sr-only">Search event titles</label>
+              <input id="listSearch" type="search" placeholder="Search event titles…" class="px-3 py-2 rounded-xl border w-64" />
+              <button id="listSearchClear" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search" title="Clear search" type="button">×</button>
+            </div>
           </div>
         </div>
 
@@ -414,9 +423,9 @@
         <div>
           <label class="block text-sm font-medium mb-1" for="chartType">Chart type</label>
           <select id="chartType" class="w-full px-3 py-2 rounded-xl border">
-          <option value="bar">Bar</option>
-          <option value="pie">Pie</option>
-          <option value="line">Line</option>
+            <option value="bar">Bar</option>
+            <option value="pie">Pie</option>
+            <option value="line">Line</option>
           </select>
         </div>
         <div>
@@ -559,11 +568,16 @@
     });
 
     /* ============================== *
-     *  List view & sorting state     *
+     *  Main list state               *
      * ============================== */
-    let LIST_VIEW_MODE = 'grouped';
+    let LIST_VIEW_MODE = 'grouped'; // backward-compat for grouped/all internals
     let LIST_SEARCH = '';
     const EVENT_SORT = { key: 'score', dir: 'desc' };
+
+    // NEW primary tabs + risks mode
+    let PRIMARY_TAB = 'risks';   // 'risks' | 'actions'
+    let RISKS_MODE  = 'all';     // 'all' | 'grouped'
+    let HAZARDS_CACHE = [];
 
     /* ============================== *
      *  App state (editing, file)     *
@@ -641,7 +655,6 @@
         return JSON.stringify({ items, hazards, actions });
       });
     }
-    
     async function updateSavedSnapshot() { lastSavedSnapshot = await getDatasetSnapshotString(); fileDirty = false; refreshStatus(); }
     async function recomputeDirtyAgainstSnapshot() { const snap = await getDatasetSnapshotString(); fileDirty = (snap !== lastSavedSnapshot); refreshStatus(); }
 
@@ -662,53 +675,57 @@
       if (s >= 6)  return { label: 'Low', cls: 'bg-yellow-100 text-yellow-800' };
       return { label: 'Very Low', cls: 'bg-emerald-100 text-emerald-800' };
     }
+    function hazardNameOf(id){
+      if (!id) return '(Uncategorised)';
+      const h = HAZARDS_CACHE.find(x => x.id === id);
+      return h ? h.title : '(Uncategorised)';
+    }
 
     /* ============================== *
      *  Store (in-memory session)     *
      * ============================== */
     const SessionStore = {
-  _items: [], _hazards: [], _actions: [],
-  _nextItemId: 1, _nextHazId: 1, _nextActionId: 1,
+      _items: [], _hazards: [], _actions: [],
+      _nextItemId: 1, _nextHazId: 1, _nextActionId: 1,
 
-  // Events
-  add(rec) { const id = this._nextItemId++; const copy = { ...rec, id }; this._items.unshift(copy); return Promise.resolve({ id }); },
-  put(rec) { if (!rec.id) return this.add(rec); const i = this._items.findIndex(x => x.id === rec.id);
-    const c = JSON.parse(JSON.stringify(rec)); if (i > -1) this._items[i] = c; else this._items.unshift(c); return Promise.resolve({ id: rec.id }); },
-  getAll() { return Promise.resolve(this._items.map(x => JSON.parse(JSON.stringify(x)))); },
-  get(id) { const it = this._items.find(x => x.id === id); return Promise.resolve(it ? JSON.parse(JSON.stringify(it)) : null); },
-  delete(id) { this._items = this._items.filter(x => x.id !== id); return Promise.resolve(); },
+      // Events
+      add(rec) { const id = this._nextItemId++; const copy = { ...rec, id }; this._items.unshift(copy); return Promise.resolve({ id }); },
+      put(rec) { if (!rec.id) return this.add(rec); const i = this._items.findIndex(x => x.id === rec.id);
+        const c = JSON.parse(JSON.stringify(rec)); if (i > -1) this._items[i] = c; else this._items.unshift(c); return Promise.resolve({ id: rec.id }); },
+      getAll() { return Promise.resolve(this._items.map(x => JSON.parse(JSON.stringify(x)))); },
+      get(id) { const it = this._items.find(x => x.id === id); return Promise.resolve(it ? JSON.parse(JSON.stringify(it)) : null); },
+      delete(id) { this._items = this._items.filter(x => x.id !== id); return Promise.resolve(); },
 
-  // Hazards
-  addHazard(title) { const id = this._nextHazId++; this._hazards.push({ id, title: String(title || 'Untitled Hazard').trim() }); return Promise.resolve({ id }); },
-  putHazard(haz) { const i = this._hazards.findIndex(h => h.id === haz.id); if (i > -1) this._hazards[i] = { id: haz.id, title: String(haz.title || 'Untitled Hazard').trim() }; return Promise.resolve({ id: haz.id }); },
-  getAllHazards() { return Promise.resolve(this._hazards.map(h => ({ id: h.id, title: h.title }))); },
-  deleteHazard(id) { this._hazards = this._hazards.filter(h => h.id !== id); this._items = this._items.map(ev => (ev.hazardId === id ? { ...ev, hazardId: null } : ev)); return Promise.resolve(); },
+      // Hazards
+      addHazard(title) { const id = this._nextHazId++; this._hazards.push({ id, title: String(title || 'Untitled Hazard').trim() }); return Promise.resolve({ id }); },
+      putHazard(haz) { const i = this._hazards.findIndex(h => h.id === haz.id); if (i > -1) this._hazards[i] = { id: haz.id, title: String(haz.title || 'Untitled Hazard').trim() }; return Promise.resolve({ id: haz.id }); },
+      getAllHazards() { return Promise.resolve(this._hazards.map(h => ({ id: h.id, title: h.title }))); },
+      deleteHazard(id) { this._hazards = this._hazards.filter(h => h.id !== id); this._items = this._items.map(ev => (ev.hazardId === id ? { ...ev, hazardId: null } : ev)); return Promise.resolve(); },
 
-  // Actions
-  addAction(a) { const id = this._nextActionId++; const copy = { id, title: String(a.title||'Untitled Action').trim(), description: a.description||'', status: a.status||'Planned', owner: a.owner||'', color: a.color||'' , createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this._actions.push(copy); return Promise.resolve({ id }); },
-  putAction(a) { const i = this._actions.findIndex(x => x.id === a.id); const rec = { ...this._actions[i], ...a, updatedAt: new Date().toISOString() }; if (i > -1) this._actions[i] = rec; else this._actions.push(rec); return Promise.resolve({ id: rec.id }); },
-  deleteAction(id) { this._actions = this._actions.filter(x => x.id !== id);
-    // detach mitigations that referenced this action
-    this._items = this._items.map(ev => ({ ...ev, planMitigations: (ev.planMitigations||[]).map(m => ({ ...m, actionId: m.actionId === id ? null : m.actionId })) }));
-    return Promise.resolve();
-  },
-  getAllActions() { return Promise.resolve(this._actions.map(x => ({ ...x }))); },
+      // Actions
+      addAction(a) { const id = this._nextActionId++; const copy = { id, title: String(a.title||'Untitled Action').trim(), description: a.description||'', status: a.status||'Planned', owner: a.owner||'', color: a.color||'' , createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this._actions.push(copy); return Promise.resolve({ id }); },
+      putAction(a) { const i = this._actions.findIndex(x => x.id === a.id); const rec = { ...this._actions[i], ...a, updatedAt: new Date().toISOString() }; if (i > -1) this._actions[i] = rec; else this._actions.push(rec); return Promise.resolve({ id: rec.id }); },
+      deleteAction(id) { this._actions = this._actions.filter(x => x.id !== id);
+        // detach mitigations that referenced this action
+        this._items = this._items.map(ev => ({ ...ev, planMitigations: (ev.planMitigations||[]).map(m => ({ ...m, actionId: m.actionId === id ? null : m.actionId })) }));
+        return Promise.resolve();
+      },
+      getAllActions() { return Promise.resolve(this._actions.map(x => ({ ...x }))); },
 
-  // Bulk load/set
-  setAll(payload) {
-    const items = Array.isArray(payload?.items) ? payload.items : [];
-    const hazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
-    const actions = Array.isArray(payload?.actions) ? payload.actions : [];
+      // Bulk load/set
+      setAll(payload) {
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        const hazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
+        const actions = Array.isArray(payload?.actions) ? payload.actions : [];
 
-    this._items = []; this._hazards = []; this._actions = [];
-    this._nextItemId = 1; this._nextHazId = 1; this._nextActionId = 1;
+        this._items = []; this._hazards = []; this._actions = [];
+        this._nextItemId = 1; this._nextHazId = 1; this._nextActionId = 1;
 
-    hazards.forEach(h => { this._hazards.push({ id: this._nextHazId++, title: String(h.title || 'Untitled Hazard') }); });
-    actions.forEach(a => { this._actions.push({ id: this._nextActionId++, title: String(a.title || 'Untitled Action'), description: a.description||'', status: a.status||'Planned', owner: a.owner||'', color: a.color||'', createdAt: a.createdAt||new Date().toISOString(), updatedAt: a.updatedAt||new Date().toISOString() }); });
-    items.forEach(it => { this._items.push({ ...it, id: this._nextItemId++ }); });
-  }
-};
-
+        hazards.forEach(h => { this._hazards.push({ id: this._nextHazId++, title: String(h.title || 'Untitled Hazard') }); });
+        actions.forEach(a => { this._actions.push({ id: this._nextActionId++, title: String(a.title || 'Untitled Action'), description: a.description||'', status: a.status||'Planned', owner: a.owner||'', color: a.color||'', createdAt: a.createdAt||new Date().toISOString(), updatedAt: a.updatedAt||new Date().toISOString() }); });
+        items.forEach(it => { this._items.push({ ...it, id: this._nextItemId++ }); });
+      }
+    };
 
     /* ============================== *
      *  Sorting / filtering helpers   *
@@ -716,7 +733,8 @@
     const sortComparators = {
       title: (a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }),
       status: (a, b) => (a.status || '').localeCompare(b.status || '', undefined, { sensitivity: 'base' }),
-      score: (a, b) => Number((a.framework7 || {}).overall || 0) - Number((b.framework7 || {}).overall || 0)
+      score: (a, b) => Number((a.framework7 || {}).overall || 0) - Number((b.framework7 || {}).overall || 0),
+      hazard: (a, b) => hazardNameOf(a.hazardId).localeCompare(hazardNameOf(b.hazardId), undefined, { sensitivity: 'base' })
     };
     function sortEvents(rows) { const cmp = sortComparators[EVENT_SORT.key] || sortComparators.score; const out = rows.slice().sort(cmp); if (EVENT_SORT.dir === 'desc') out.reverse(); return out; }
     function sortHazardsByTitle(hazards) { return hazards.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'',undefined,{sensitivity:'base'})); }
@@ -1160,8 +1178,8 @@
         const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
         const hazards = Array.isArray(data?.hazards) ? data.hazards : [];
         const actions = Array.isArray(data?.actions) ? data.actions : [];
-				if (items.length > 10000 || hazards.length > 5000) throw new Error('Too large');
-				SessionStore.setAll({ items, hazards, actions });
+        if (items.length > 10000 || hazards.length > 5000) throw new Error('Too large');
+        SessionStore.setAll({ items, hazards, actions });
         refreshHazardsAccordion();
         recalc();
         updateSavedSnapshot();
@@ -1179,17 +1197,14 @@
      *  Collect / Save current event  *
      * ============================== */
     function collectCurrent(existing) {
-      // Description HTML
       const detailsHtml = el('descEditor')?.innerHTML || '';
 
-      // Gather raw inputs (clamped to 1–5 just in case)
       const inputs = {};
       CFG.categories.forEach(c =>
         c.sub.forEach(sf => inputs[sf.id] = clamp15(el(sf.id)?.value))
       );
       inputs[CFG.likelihoodId] = clamp15(el(CFG.likelihoodId)?.value);
 
-      // Rolls / adjusted / effectiveness / enabled flags
       const rolls = {};
       const adjs = {};
       const effs = {};
@@ -1204,7 +1219,6 @@
         enabled[c.key] = enabledOf(c.key);
       });
 
-      // Per-category risks (adj × L) and overall (max adj × L)
       const like = clamp15(inputs[CFG.likelihoodId]);
       Object.keys(adjs).forEach(k => { if (enabled[k]) risks[k] = round1(adjs[k] * like); });
       const currentVals = Object.entries(adjs)
@@ -1212,7 +1226,6 @@
         .map(([, v]) => v);
       const overall = round1((currentVals.length ? Math.max(...currentVals) : 0) * like);
 
-      // Mitigations / gaps snapshot
       const mitigations = {};
       CFG.categories.forEach(c => { mitigations[c.key] = getMitigations(c.key); });
 
@@ -1497,6 +1510,26 @@
         </tr>`;
       }).join('');
     }
+    function buildEventRowsHTML_All(rows) {
+      return rows.map(r => {
+        const f = r.framework7 || {};
+        const overall = Number(f.overall ?? 0);
+        const rc = riskClass(overall);
+        const status = r.status || 'Tolerate';
+        const badge = `<span class="inline-block text-xs ${rc.cls} px-2 py-0.5 rounded-full">${rc.label}</span>`;
+        return `<tr class="border-b hover:bg-slate-50" data-id="${r.id}">
+          <td class="py-2 pr-4">${escapeHtml(r.title || '')}</td>
+          <td class="py-2 pr-4">${escapeHtml(hazardNameOf(r.hazardId))}</td>
+          <td class="py-2 pr-4"><div class="flex items-center gap-2"><span class="font-semibold">${overall.toFixed(1)}</span>${badge}</div></td>
+          <td class="py-2 pr-4">${escapeHtml(status)}</td>
+          <td class="py-2 pr-4">
+            <button data-action="edit" data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Edit</button>
+            <button data-action="dup"  data-id="${r.id}" class="px-2 py-1 rounded-lg border mr-1">Duplicate</button>
+            <button data-action="del"  data-id="${r.id}" class="px-2 py-1 rounded-lg border border-rose-300 text-rose-700">Delete</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
     function hazardBlock(h, rows, isUncat = false) {
       const count = rows.length;
       const subtitle = `${isUncat ? 'Uncategorised' : 'Hazard'} • ${count} event${count === 1 ? '' : 's'}`;
@@ -1549,18 +1582,20 @@
         btn.textContent = base + suffix;
       });
     }
-    async function renderAllEventsTable(items) {
+    async function renderAllEventsTable(items, hazards) {
+      HAZARDS_CACHE = hazards ? hazards.slice() : HAZARDS_CACHE;
       const root = document.getElementById('hazardsAccordion');
       const rowsSorted = sortEvents(items || []);
       root.innerHTML = `<div class="overflow-x-auto">
         <table class="min-w-full text-sm" id="allEventsTable" data-hazard="all">
           <thead><tr class="text-left">
-            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="title" type="button">Event Title</button></th>
-            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="score" type="button">Risk Score</button></th>
-            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="status" type="button">Status</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="title" type="button">Event Title${sortIcon('title')}</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="hazard" type="button">Hazard${sortIcon('hazard')}</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="score" type="button">Risk Score${sortIcon('score')}</button></th>
+            <th class="py-2 pr-4"><button class="th-sort font-semibold" data-sort="status" type="button">Status${sortIcon('status')}</button></th>
             <th class="py-2 pr-4">Actions</th>
           </tr></thead>
-          <tbody class="tbody-fade">${buildEventRowsHTML(rowsSorted)}</tbody>
+          <tbody class="tbody-fade">${buildEventRowsHTML_All(rowsSorted)}</tbody>
         </table></div>`;
       updateSortIndicators(root);
       updateAriaSort(root);
@@ -1584,12 +1619,24 @@
       updateSortIndicators(root);
       updateAriaSort(root);
     }
-    async function renderListView() {
-      if (LIST_VIEW_MODE === 'actions') { await renderActionsList(); return; }
-      const [hazards, items] = await Promise.all([SessionStore.getAllHazards(), SessionStore.getAll() ]);
+    async function renderRisksView(){
+      const [hazards, items] = await Promise.all([SessionStore.getAllHazards(), SessionStore.getAll()]);
+      HAZARDS_CACHE = hazards.slice();
       const filtered = filterItemsBySearch(items);
-      if (LIST_VIEW_MODE === 'grouped') { renderHazardsAccordion(hazards, filtered); }
-      else { renderAllEventsTable(filtered); }
+      if (RISKS_MODE === 'grouped') {
+        renderHazardsAccordion(hazards, filtered);
+      } else {
+        renderAllEventsTable(filtered, hazards);
+      }
+    }
+    async function renderListView() {
+      if (PRIMARY_TAB === 'actions') {
+        await renderActionsList();
+        el('risksToolbar')?.classList.add('hidden');
+        return;
+      }
+      el('risksToolbar')?.classList.remove('hidden');
+      await renderRisksView();
     }
     function refreshHazardsAccordion() { renderListView(); }
     async function resortAllTablesInPlace() {
@@ -1611,11 +1658,12 @@
     async function resortAllEventsInPlace() {
       const tbl = document.getElementById('allEventsTable'); if (!tbl) return;
       const tbody = tbl.querySelector('tbody');
-      const items = await SessionStore.getAll();
+      const [items, hazards] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards()]);
+      HAZARDS_CACHE = hazards.slice();
       const filtered = filterItemsBySearch(items);
       const sorted = sortEvents(filtered);
       tbody.style.opacity = '0';
-      setTimeout(() => { tbody.innerHTML = buildEventRowsHTML(sorted); tbody.style.opacity = '1'; }, 180);
+      setTimeout(() => { tbody.innerHTML = buildEventRowsHTML_All(sorted); tbody.style.opacity = '1'; }, 180);
       updateAriaSort(tbl.closest('#hazardsAccordion') || document);
     }
 
@@ -1626,7 +1674,7 @@
       SessionStore.getAllHazards().then(hazards => {
         const hazardsAZ = sortHazardsByTitle(hazards);
         const sel = el('hazardSel');
-        const options = [`<option value="">(Uncategorised)</option>`, ...hazardsAZ.map(h => `<option value="${h.id}">${escapeHtml(h.title)}</option>`)];
+        const options = [`<option value="">(Uncategorised)</option>`, ...hazardsAZ.map(h => `<option value="${h.id}">${escapeHtml(h.title)}</option>`) ];
         sel.innerHTML = options.join('');
         if (selectedId != null && hazardsAZ.some(h => h.id === selectedId)) sel.value = String(selectedId);
         else if (editingHazardId != null && hazardsAZ.some(h => h.id === editingHazardId)) sel.value = String(editingHazardId);
@@ -1658,7 +1706,7 @@
       Object.entries(panels).forEach(([k, panel]) => { if (panel) panel.classList.toggle('active', k === name); });
       if (name === 'plan') { renderPlanGaps(); renderMitigationsList(); }
     }
-    function wireTabs() {
+    function wireEditorTabs() {
       const list = el('editorTabs');
       list?.addEventListener('keydown', (e) => {
         const tabs = Array.from(list.querySelectorAll('[role="tab"]'));
@@ -1675,23 +1723,13 @@
       document.querySelectorAll('[data-tab]').forEach(btn => { btn.addEventListener('click', () => activateTab(btn.dataset.tab)); });
       activateTab('details');
     }
-      
+
     /* ============================== *
      *  Actions tab (grouped + Gantt) *
      * ============================== */
     let ACTIONS_TIMELINE_OFFSET = 0;        // months offset (0 = last month..+12 ahead)
     const ACTIONS_MONTHS = 14;
 
-    async function getAllMitigations() {
-      const items = await SessionStore.getAll();
-      const out = [];
-      items.forEach(it => {
-        (it.planMitigations || []).forEach(m => {
-          out.push({ itemId: it.id, eventTitle: it.title || '', mitigation: m });
-        });
-      });
-      return out;
-    }
     async function setMitigationAction(itemId, mitigationId, actionId) {
       const it = await SessionStore.get(itemId);
       if (!it) return;
@@ -1836,7 +1874,7 @@
                   <div class="gantt-header">${headerRow}</div>
                   <div class="gantt-rows">${rows}</div>
                 </div>
-                <div class="today-line" data-today-line></div>
+                <div class="today-line" style="left: calc(18rem + (100% - 18rem) * ${(todayPercent()/100).toFixed(6)})"></div>
               </div>
             </div>
           </details>
@@ -1877,31 +1915,8 @@
 
       root.innerHTML = blocks.join('');
 
-function positionTodayLines(){
-  const p = todayPercent() / 100; // 0..1 across the months window
-  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const titlePx = 18 * rem; // matches grid's first column: 18rem
-
-  root.querySelectorAll('.gantt-wrap').forEach(wrap => {
-    const line = wrap.querySelector('[data-today-line]');
-    if (!line) return;
-    const w = wrap.clientWidth;
-    const timelinePx = Math.max(0, w - titlePx);
-    const leftPx = titlePx + p * timelinePx;
-    line.style.left = leftPx + 'px';
-  });
-}
-
-positionTodayLines();
-
       el('actionsPrev')?.addEventListener('click', ()=> { ACTIONS_TIMELINE_OFFSET -= 1; renderActionsBoard(); });
       el('actionsNext')?.addEventListener('click', ()=> { ACTIONS_TIMELINE_OFFSET += 1; renderActionsBoard(); });
-
-if (window.__actionsTodayResizeHandler) {
-  window.removeEventListener('resize', window.__actionsTodayResizeHandler);
-}
-window.__actionsTodayResizeHandler = makeDebounced(positionTodayLines, 120);
-window.addEventListener('resize', window.__actionsTodayResizeHandler);
     }
 
     async function renderActionsList(){
@@ -2115,17 +2130,20 @@ window.addEventListener('resize', window.__actionsTodayResizeHandler);
      * ============================== */
     function updateListTabsUI() {
       document.querySelectorAll('[data-listtab]').forEach(b => {
-        const on = (b.getAttribute('data-listtab') === LIST_VIEW_MODE);
+        const on = (b.getAttribute('data-listtab') === PRIMARY_TAB);
         b.classList.toggle('tab-btn-active', on);
         b.classList.toggle('tab-btn-inactive', !on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
       });
     }
+
     const applySearch = makeDebounced(() => {
       const searchEl = el('listSearch');
       LIST_SEARCH = (searchEl?.value || '');
-      if (LIST_SEARCH.trim() && LIST_VIEW_MODE !== 'actions') {
-        LIST_VIEW_MODE = 'all';
+      if (LIST_SEARCH.trim()) {
+        PRIMARY_TAB = 'risks';
+        RISKS_MODE = 'all';
+        const sel = el('risksModeSelect'); if (sel) sel.value = 'all';
         updateListTabsUI();
       }
       renderListView();
@@ -2137,6 +2155,17 @@ window.addEventListener('resize', window.__actionsTodayResizeHandler);
     function wireListDelegation() {
       const listRoot = el('hazardsAccordion');
       if (!listRoot) return;
+
+      document.getElementById('listTabs')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-listtab]'); if (!btn) return;
+        const tab = btn.getAttribute('data-listtab');
+        if (tab === 'risks' || tab === 'actions') {
+          PRIMARY_TAB = tab;
+          updateListTabsUI();
+          renderListView();
+        }
+      });
+
       listRoot.addEventListener('click', async (e) => {
         const btn = e.target.closest('button');
         if (btn?.dataset?.action) {
@@ -2150,7 +2179,7 @@ window.addEventListener('resize', window.__actionsTodayResizeHandler);
             renderListView();
             return;
           }
-        
+
           // Actions tab: main controls
           if (btn?.dataset?.action === 'action-add') { openActionModal(null); return; }
           if (btn?.dataset?.action === 'action-edit') { openActionModal(Number(btn.dataset.id)); return; }
@@ -2161,7 +2190,7 @@ window.addEventListener('resize', window.__actionsTodayResizeHandler);
             renderActionsList();
             return;
           }
-        
+
           if (action === 'dup') { duplicateEvent(id); return; }
           if (action === 'edit') { loadEvent(id); return; }
           if (action === 'haz-rename') {
@@ -2191,10 +2220,14 @@ window.addEventListener('resize', window.__actionsTodayResizeHandler);
           if (EVENT_SORT.key === key) EVENT_SORT.dir = (EVENT_SORT.dir === 'asc' ? 'desc' : 'asc');
           else { EVENT_SORT.key = key; EVENT_SORT.dir = (key === 'score' ? 'desc' : 'asc'); }
           updateSortIndicators(listRoot);
-          if (LIST_VIEW_MODE === 'all') await resortAllEventsInPlace(); else await resortAllTablesInPlace();
+
+          if (PRIMARY_TAB === 'risks') {
+            if (RISKS_MODE === 'all') await resortAllEventsInPlace();
+            else await resortAllTablesInPlace();
+          }
           return;
         }
-    
+
         const tr = e.target.closest('tbody tr[data-id]');
         if (tr && !btn) loadEvent(Number(tr.dataset.id));
       });
@@ -2342,11 +2375,11 @@ window.addEventListener('resize', window.__actionsTodayResizeHandler);
           document.getElementById('chartType').value = spec.type || 'bar';
           document.getElementById('chartTitle').value = cap?.textContent || '';
           document.getElementById('chartH').value = spec.h || 320;
-          	const lines = spec.labels.map((lab,i) => {
-						const needsQuotes = /[",]/.test(lab);
-						const safe = needsQuotes ? `"${lab.replace(/"/g,'""')}"` : lab;
-						return `${safe}, ${spec.values[i] ?? 0}`;
-						}).join('\n');
+          const lines = spec.labels.map((lab, i) => {
+            const needsQuotes = /[",]/.test(lab);
+            const safe = needsQuotes ? `"${lab.replace(/"/g, '""')}"` : lab;
+            return `${safe}, ${spec.values[i] ?? 0}`;
+          }).join('\n');
           document.getElementById('chartData').value = lines;
         } catch {}
       } else {
@@ -2393,76 +2426,126 @@ window.addEventListener('resize', window.__actionsTodayResizeHandler);
         if (fig && editor.contains(fig)) { e.preventDefault(); openChartModal(fig); }
       });
       editor.addEventListener('keydown', (e) => {
-        const fig = document.activeElement && document.activeElement.closest?.('figure.rte-chart'); if (!fig) return;
-        if (e.key === 'Enter') { e.preventDefault(); const p = makeEmptyPara(); if (e.shiftKey) { fig.parentNode.insertBefore(p, fig); } else { if (fig.nextSibling) fig.parentNode.insertBefore(p, fig.nextSibling); else fig.parentNode.appendChild(p); } placeCaretIn(p, false); ensureTrailingParagraph(); }
+        const fig = document.activeElement?.closest?.('figure.rte-chart');
+        if (!fig) return;
+
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const p = makeEmptyPara();
+          if (fig.nextSibling) {
+            fig.parentNode.insertBefore(p, fig.nextSibling);
+          } else {
+            fig.parentNode.appendChild(p);
+          }
+          placeCaretIn(p, true);
+        }
+
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          // Allow removing a selected chart with Backspace/Delete
+          e.preventDefault();
+          fig.remove();
+          ensureTrailingParagraph();
+        }
       });
-      editor.addEventListener('input', ensureTrailingParagraph);
-      window.addEventListener('resize', () => { renderAllCharts(editor); ensureTrailingParagraph(); });
+		}
+
+    /* ===== Actions: modal editor (Add/Edit) ===== */
+    let editingActionId = null;
+
+    function openActionModal(id = null) {
+      editingActionId = id;
+      const modal = el('actionModal');
+      const title = el('actionModalTitle');
+
+      if (id == null) {
+        title.textContent = 'Add Action';
+        el('actionTitleInput').value = '';
+        el('actionOwnerInput').value = '';
+        el('actionStatusInput').value = 'Planned';
+        el('actionColorInput').value = '#2563eb';
+        el('actionDescInput').value = '';
+      } else {
+        SessionStore.getAllActions().then(list => {
+          const a = list.find(x => x.id === id);
+          if (!a) return;
+          title.textContent = 'Edit Action';
+          el('actionTitleInput').value = a.title || '';
+          el('actionOwnerInput').value = a.owner || '';
+          el('actionStatusInput').value = a.status || 'Planned';
+          el('actionColorInput').value = a.color || '#2563eb';
+          el('actionDescInput').value = a.description || '';
+        });
+      }
+
+      el('actionOkBtn').onclick = async () => {
+        const rec = {
+          ...(editingActionId != null ? { id: editingActionId } : {}),
+          title: el('actionTitleInput').value.trim() || 'Untitled Action',
+          owner: el('actionOwnerInput').value.trim(),
+          status: el('actionStatusInput').value,
+          color: el('actionColorInput').value,
+          description: el('actionDescInput').value.trim()
+        };
+
+        if (editingActionId == null) await SessionStore.addAction(rec);
+        else await SessionStore.putAction(rec);
+
+        closeModal(modal);
+        await recomputeDirtyAgainstSnapshot();
+
+        if (PRIMARY_TAB === 'actions') {
+          await renderActionsList();
+        } else {
+          await renderListView();
+        }
+      };
+
+      el('actionCancelBtn').onclick = () => closeModal(modal);
+      openModal(modal, '#actionTitleInput');
     }
 
-/* ===== Actions: modal editor (Add/Edit) ===== */
-let editingActionId = null;
-
-function openActionModal(id = null) {
-  editingActionId = id;
-  const modal = el('actionModal');
-  const title = el('actionModalTitle');
-
-  if (id == null) {
-    title.textContent = 'Add Action';
-    el('actionTitleInput').value = '';
-    el('actionOwnerInput').value = '';
-    el('actionStatusInput').value = 'Planned';
-    el('actionColorInput').value = '#2563eb';
-    el('actionDescInput').value = '';
-  } else {
-    SessionStore.getAllActions().then(list => {
-      const a = list.find(x => x.id === id);
-      if (!a) return;
-      title.textContent = 'Edit Action';
-      el('actionTitleInput').value = a.title || '';
-      el('actionOwnerInput').value = a.owner || '';
-      el('actionStatusInput').value = a.status || 'Planned';
-      el('actionColorInput').value = a.color || '#2563eb';
-      el('actionDescInput').value = a.description || '';
-    });
-  }
-
-  el('actionOkBtn').onclick = async () => {
-    const rec = {
-      ...(editingActionId != null ? { id: editingActionId } : {}),
-      title: el('actionTitleInput').value.trim() || 'Untitled Action',
-      owner: el('actionOwnerInput').value.trim(),
-      status: el('actionStatusInput').value,
-      color: el('actionColorInput').value,
-      description: el('actionDescInput').value.trim()
-    };
-
-    if (editingActionId == null) await SessionStore.addAction(rec);
-    else await SessionStore.putAction(rec);
-
-    closeModal(modal);
-    await recomputeDirtyAgainstSnapshot();
-
-    // Refresh the current view
-    if (LIST_VIEW_MODE === 'actions') {
-      await renderActionsList();
-    } else {
-      await renderListView();
+    /* ============================== *
+     *  Risks toolbar actions         *
+     * ============================== */
+    function newEvent() {
+      editingId = null;
+      populateHazardSelect(null);
+      el('riskTitle').value = '';
+      el('statusSel').value = 'Tolerate';
+      el('descEditor').innerHTML = '';
+      setLinks([]);
+      planMitigations = [];
+      renderMitigationsList();
+      renderPlanGaps();
+      CFG.categories.forEach(c => {
+        el('en_' + c.key).checked = false;
+        toggleSectionBody(c.key, false);
+        c.sub.forEach(sf => { el(sf.id).value = 3; if (GUIDANCE[sf.id]) updateGuidanceHighlight(sf.id); });
+        el('eff_' + c.key).value = 1;
+        setMitigations(c.key, []);
+        setGaps(c.key, []);
+      });
+      el(CFG.likelihoodId).value = 3;
+      recalc();
+      el('narrative').textContent = 'Press Generate Narrative to produce a tailored summary.';
+      activateTab('details');
+      switchToEditor();
     }
-  };
-
-  el('actionCancelBtn').onclick = () => closeModal(modal);
-  openModal(modal, '#actionTitleInput');
-}
-
+    async function addHazardFlow() {
+      const t = prompt('New hazard title:');
+      if (!t || !t.trim()) return;
+      await SessionStore.addHazard(t.trim());
+      await recomputeDirtyAgainstSnapshot();
+      refreshHazardsAccordion();
+      populateHazardSelect(null);
+    }
 
     /* ============================== *
      *  Wire page                     *
      * ============================== */
     function wire() {
       buildCategoryBlocks();
-      wireTabs();
+      wireEditorTabs();
       wireRte();
       enhanceRTEWithCharts();
       wireFileMenu();
@@ -2473,103 +2556,78 @@ function openActionModal(id = null) {
       CFG.categories.forEach(c => {
         const mitAdd = el(`mit_${c.key}_add`);
         const mitInp = el(`mit_${c.key}_input`);
-        if (mitAdd) mitAdd.addEventListener('click', () => { const t = (mitInp?.value || '').trim(); if (!t) return; addTag('mit', c.key, t, ''); mitInp.value = ''; });
-        if (mitInp) mitInp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); mitAdd?.click(); } });
-
+        if (mitAdd && mitInp) {
+          mitAdd.addEventListener('click', () => { const v = mitInp.value.trim(); if (v) { addTag('mit', c.key, v, ''); mitInp.value = ''; }});
+          mitInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); mitAdd.click(); }});
+        }
         const gapAdd = el(`gap_${c.key}_add`);
         const gapInp = el(`gap_${c.key}__input`);
-        if (gapAdd) gapAdd.addEventListener('click', () => { const t = (gapInp?.value || '').trim(); if (!t) return; addTag('gap', c.key, t, ''); gapInp.value = ''; });
-        if (gapInp) gapInp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); gapAdd?.click(); } });
-
-        const chk = el('en_' + c.key);
-        if (chk) chk.addEventListener('change', () => { toggleSectionBody(c.key, chk.checked); recalc(); renderPlanGaps(); markDirtySoon(); });
-      });
-
-      // Score inputs + guidance
-      CFG.categories.forEach(c => c.sub.forEach(sf => {
-        const inp = el(sf.id);
-        inp.addEventListener('input', () => { recalc(); markDirtySoon(); });
-        if (GUIDANCE[sf.id]) {
-          const panelId = 'g_' + sf.id;
-          inp.addEventListener('focus', () => { showGuide(panelId); updateGuidanceHighlight(sf.id); });
-          inp.addEventListener('input', () => updateGuidanceHighlight(sf.id));
-          inp.addEventListener('change', () => updateGuidanceHighlight(sf.id));
-          inp.addEventListener('blur', () => hideGuide(panelId));
+        if (gapAdd && gapInp) {
+          gapAdd.addEventListener('click', () => { const v = gapInp.value.trim(); if (v) { addTag('gap', c.key, v, ''); gapInp.value=''; }});
+          gapInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); gapAdd.click(); }});
         }
-      }));
-      el(CFG.likelihoodId).addEventListener('input', () => { recalc(); markDirtySoon(); });
-      CFG.categories.forEach(c => el('eff_' + c.key).addEventListener('input', () => { recalc(); markDirtySoon(); }));
-
-      // Top buttons
-      el('addHazardBtn').addEventListener('click', () => {
-        const t = prompt('New hazard title:');
-        if (!t || !t.trim()) return;
-        SessionStore.addHazard(t.trim()).then(async () => {
-          refreshHazardsAccordion();
-          await recomputeDirtyAgainstSnapshot();
-          populateHazardSelect(editingHazardId);
+        const eff = el(`eff_${c.key}`);
+        if (eff) eff.addEventListener('input', recalc);
+        const en = el(`en_${c.key}`);
+        if (en) en.addEventListener('change', () => { toggleSectionBody(c.key, en.checked); recalc(); });
+        c.sub.forEach(sf => {
+          const input = el(sf.id);
+          if (input) {
+            input.addEventListener('input', () => { recalc(); if (GUIDANCE[sf.id]) updateGuidanceHighlight(sf.id); });
+            const guide = el('g_'+sf.id);
+            if (guide) {
+              input.addEventListener('focus', () => showGuide('g_'+sf.id));
+              input.addEventListener('blur', () => hideGuide('g_'+sf.id));
+            }
+          }
         });
       });
 
-      el('addEventBtn').addEventListener('click', () => {
-        editingId = null; el('riskTitle').value = ''; el('statusSel').value = 'Tolerate';
-        el('descEditor').innerHTML = ''; setLinks([]);
-        renderAllCharts(el('descEditor')); ensureTrailingParagraph();
-        CFG.categories.forEach(c => {
-          c.sub.forEach(sf => el(sf.id).value = 3);
-          if (el('eff_' + c.key)) el('eff_' + c.key).value = 1;
-          setMitigations(c.key, []); setGaps(c.key, []);
-          const chk = el('en_' + c.key); if (chk) { chk.checked = false; toggleSectionBody(c.key, false); }
-        });
-        el(CFG.likelihoodId).value = 3; recalc();
-        el('narrative').textContent = 'Press Generate Narrative to produce a tailored summary.';
-        populateHazardSelect(editingHazardId);
-        planMitigations = []; renderMitigationsList(); renderPlanGaps();
-        activateTab('details');
-        switchToEditor();
+      // Likelihood
+      el(CFG.likelihoodId)?.addEventListener('input', recalc);
+
+      // RTE buttons
+      el('addLinkBtn')?.addEventListener('click', () => openLinkModal('Add Link'));
+      el('generateBtn')?.addEventListener('click', genNarrative);
+      el('saveBtn')?.addEventListener('click', saveCurrent);
+      el('resetBtn')?.addEventListener('click', () => loadEvent(editingId));
+      el('cancelBtn')?.addEventListener('click', switchToList);
+      el('backToListBtn')?.addEventListener('click', switchToList);
+
+      // Risks toolbar
+      el('risksModeSelect')?.addEventListener('change', (e) => {
+        RISKS_MODE = e.target.value === 'grouped' ? 'grouped' : 'all';
+        renderListView();
       });
+      el('addHazardBtn')?.addEventListener('click', addHazardFlow);
+      el('addEventBtn')?.addEventListener('click', newEvent);
 
-      // Plan buttons
-      el('addMitigationBtn').addEventListener('click', () => openMitigationModal(null));
-      el('generateBtn').addEventListener('click', genNarrative);
-      el('saveBtn').addEventListener('click', async () => { saveCurrent(); await recomputeDirtyAgainstSnapshot(); });
-      el('backToListBtn').addEventListener('click', () => switchToList());
-      el('cancelBtn').addEventListener('click', () => switchToList());
-      el('resetBtn').addEventListener('click', () => { if (!editingId) return; loadEvent(editingId); });
+      // Search
+      el('listSearch')?.addEventListener('input', applySearch);
+      el('listSearchClear')?.addEventListener('click', () => { el('listSearch').value=''; applySearch(); });
 
-      const addLinkBtn = el('addLinkBtn');
-      if (addLinkBtn) addLinkBtn.addEventListener('click', () => openLinkModal('Add Link'));
+      // Chart modal
+      el('chartOkBtn')?.addEventListener('click', () => {}); // wired inside openChartModal
+      el('chartCancelBtn')?.addEventListener('click', () => {}); // wired inside openChartModal
 
-      // List tabs
-      document.querySelectorAll('[data-listtab]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          LIST_VIEW_MODE = btn.getAttribute('data-listtab');
-          updateListTabsUI();
-          renderListView();
-        });
-      });
+      // Mitigation modal
+      el('addMitigationBtn')?.addEventListener('click', () => openMitigationModal(null));
 
-      // Search (debounced)
-      const searchEl = el('listSearch');
-      const clearEl = el('listSearchClear');
-      if (searchEl) searchEl.addEventListener('input', applySearch);
-      if (clearEl) clearEl.addEventListener('click', () => { searchEl.value = ''; LIST_SEARCH = ''; applySearch(); });
+      // Action modal button handlers are set in openActionModal dynamically
 
-      // Debounced radar redraw on resize
-      window.addEventListener('resize', makeDebounced(() => recalc(), 120));
-
-      refreshHazardsAccordion();
-      switchToList();
+      // Initial render
+      populateHazardSelect(null);
       recalc();
+      renderListView();
       refreshStatus();
+
+      // Import via hash if provided
       importFromHash();
     }
 
-    /* ============================== *
-     *  Unload guard & boot           *
-     * ============================== */
-    window.addEventListener('beforeunload', (e) => { if (fileDirty) { e.preventDefault(); e.returnValue = ''; } });
+    /* ===== run ===== */
     wire();
+
   })();
   </script>
 </body>
