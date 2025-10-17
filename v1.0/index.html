@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community Risk Register - Single Page Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Number inputs */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* Toggle switch */
+    .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .2s; border-radius: 9999px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 9999px; }
+    .switch input:checked + .slider { background-color: #16a34a; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
+
+    /* Chips */
+    .chip { 
+      transition: background .15s ease; 
+      border-radius: .75rem;
+      align-items: flex-start; 
+    }
+    .chip:hover { filter: brightness(0.97); }
+    .chip [data-role="text"]{
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    /* Radar canvas */
+    #radarChart { width: 100%; height: 300px; display: block; }
+
+    /* Accordion chevron */
+    details[open] summary .chev { transform: rotate(90deg); }
+
+    /* Modal backdrop */
+    .modal-backdrop { background-color: rgba(0,0,0,0.4); }
+
+    /* Guidance collapse */
+    .gpanel-collapsed { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; border-width: 0; overflow: hidden; }
+    .gpanel-expanded { max-height: 24rem; opacity: 1; padding-top: 0.5rem; padding-bottom: 0.5rem; margin-top: 0.5rem; border-width: 1px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: .25rem; border-bottom: 1px solid #e2e8f0; }
+    .tab-btn { padding: .5rem 1rem; border-radius: .5rem .5rem 0 0; border: 1px solid transparent; font-weight: 600; color: #475569; background: #f1f5f9; }
+    .tab-btn:hover { background: #e2e8f0; }
+    .tab-btn-active { color: #0f172a; background: #ffffff; border-color: #e2e8f0; border-bottom-color: transparent; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    
+    /* Objectives tab */
+    .objectives-toolbar { display:flex; gap:.5rem; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
+
+    /* accordion row button */
+    .row-btn { padding:.25rem .5rem; border-radius:.5rem; border:1px solid #cbd5e1; background:#fff; font-size:.75rem; }
+    .row-btn:hover { background:#f1f5f9; }
+
+    /* Table fade */
+    .tbody-fade { transition: opacity .18s ease; opacity: 1; }
+
+    /* Sort header button */
+    .th-sort { background: transparent; border: 0; padding: 0; cursor: pointer; }
+    .th-sort:focus-visible { outline: 2px solid #94a3b8; outline-offset: 2px; }
+
+    /* RTE */
+    .rte-box { border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff; }
+    .rte-toolbar { display: flex; gap: .5rem; flex-wrap: wrap; padding: .5rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-top-left-radius: .75rem; border-top-right-radius: .75rem; }
+    .rte-toolbar button { padding: .25rem .5rem; border-radius: .5rem; border: 1px solid #cbd5e1; background: #fff; font-size: .875rem; color: #334155; }
+    .rte-toolbar button:hover { background: #f1f5f9; }
+    .rte-editor { min-height: 180px; padding: .75rem; outline: none; border-bottom-left-radius: .75rem; border-bottom-right-radius: .75rem; }
+    .rte-editor:focus { box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
+    .rte-chart { display:block; width:100%; max-width:100%; background:#fff; border:1px solid #e2e8f0; border-radius:.75rem; padding:.75rem; margin:.5rem 0; }
+    .rte-chart canvas { display:block; width:100% !important; }
+    .rte-editor ul,
+    .rte-editor ol {
+      list-style-position: outside;
+      margin: .25rem 0 .25rem 1.25rem;
+      padding-left: 1.25rem;
+    }
+
+    .rte-editor ul { list-style-type: disc; }
+    .rte-editor ul ul { list-style-type: circle; }
+    .rte-editor ul ul ul { list-style-type: square; }
+
+    .rte-editor ol { list-style-type: decimal; }
+    .rte-editor ol ol { list-style-type: lower-alpha; }
+    .rte-editor ol ol ol { list-style-type: lower-roman; }
+
+    .rte-editor li { margin: .125rem 0; }
+
+    /* Sticky Aside on lg+ */
+    @media (min-width: 1024px){ .sticky-aside { position: sticky; top: 1rem; align-self: flex-start; } }
+
+    /* Plan tab pills */
+    .pill {
+      padding: .25rem .5rem;
+      border-radius: .75rem;
+      font-size: .75rem;
+      border: 1px solid transparent;
+      line-height: 1.1;
+      white-space: normal;
+      word-break: break-word;
+      display: inline-block;
+      vertical-align: top;
+    }
+    .pill-red { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .pill-amber { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .pill-muted { background: transparent; color: #475569; border-color: #cbd5e1; opacity: .75; }
+    
+    .gap-pill {
+      padding: .25rem .5rem;
+      border-radius: .75rem;
+      font-size: .75rem;
+      cursor: pointer;
+      line-height: 1.1;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .gap-pill:focus-visible { outline: 2px solid #94a3b8; outline-offset: 2px; }
+
+    /* File menu + status */
+    .menu-open .menu-panel { display: block; }
+    .pulse-dot { width:.5rem; height:.5rem; border-radius:9999px; display:inline-block; margin-right:.5rem; animation:pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%{transform:scale(1);opacity:1} 50%{transform:scale(.6);opacity:.6} 100%{transform:scale(1);opacity:1} }
+
+    /* Screen-reader only utility */
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+    /* ===== Gantt styles (Objectives tab) ===== */
+    .gantt-wrap { position: relative; }
+    .gantt-grid { display: grid; grid-auto-rows: minmax(36px, auto); border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+    .gantt-header, .gantt-rows { display: contents; }
+    .gantt-cell { border-left: 1px solid #f1f5f9; border-top: 1px solid #e2e8f0; padding: .25rem .5rem; }
+    .gantt-cell.header { background: #f8fafc; font-size: .75rem; color: #475569; text-align: center; font-weight: 600; }
+    .gantt-title { padding: .25rem .5rem; font-size: .875rem; line-height: 1.2; }
+    .gantt-track { position: relative; min-height: 36px; }
+    .gantt-bar { position: absolute; height: 22px; top: 7px; border-radius: .5rem; background: rgba(99,102,241,.85); box-shadow: 0 1px 0 rgba(0,0,0,.05); }
+    .gantt-bar::after { content: ''; position: absolute; inset: 0; border: 1px solid rgba(49,46,129,.15); border-radius: .5rem; }
+    .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; pointer-events: none; }
+    .gantt-toolbar .row-btn { padding:.25rem .5rem; border-radius:.5rem; border:1px solid #cbd5e1; background:#fff; font-size:.75rem; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <!-- ===== Top menu ===== -->
+  <nav class="bg-white border-b shadow-sm">
+    <div class="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between">
+      <div class="relative" id="fileMenuRoot">
+        <button id="fileMenuBtn" class="px-3 py-1.5 rounded-lg hover:bg-slate-100 font-medium">File ▾</button>
+        <div id="fileMenuPanel" class="menu-panel hidden absolute z-50 mt-1 w-56 bg-white border rounded-xl shadow-lg overflow-hidden">
+          <button id="menuNew" class="w-full text-left px-4 py-2 hover:bg-slate-50">New</button>
+          <button id="menuOpen" class="w-full text-left px-4 py-2 hover:bg-slate-50">Open… (.litl)</button>
+          <button id="menuSave" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Save</button>
+          <button id="menuSaveAs" class="w-full text-left px-4 py-2 hover:bg-slate-50">Save As…</button>
+        </div>
+      </div>
+      <div id="fileStatus" class="text-sm text-slate-500 flex items-center gap-2" aria-live="polite">
+        <span id="statusDot" class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
+        <span id="statusText">Unsaved</span>
+      </div>
+    </div>
+    <input id="openLitlInput" type="file" accept=".litl,application/x-litl" class="hidden" />
+  </nav>
+
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold">Community Risk Register - Demo</h1>
+      <p class="text-slate-600 mb-3">
+        Manage <strong>Hazards</strong> and their <strong>Hazardous Events</strong>. Enter scores (1–5) across the seven NFCC-aligned dimensions. We'll roll them up and auto-generate a narrative.
+      </p>
+      <!-- old top buttons removed (moved into Risks toolbar) -->
+      <div class="flex flex-wrap items-center gap-3 hidden">
+        <button id="addHazardBtn_legacy" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium">Add Hazard</button>
+        <button id="addEventBtn_legacy" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Add Hazardous Event</button>
+      </div>
+    </header>
+
+    <!-- ===== List View ===== -->
+    <section id="listView" class="mb-6">
+      <div class="bg-white rounded-2xl shadow p-5">
+        <div class="mb-3">
+          <div class="tabs" id="listTabs" role="tablist" aria-label="Main list tabs">
+            <button class="tab-btn tab-btn-active" role="tab" aria-selected="true" data-listtab="risks">Risks</button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-listtab="objectives">Objectives</button>
+          </div>
+
+          <!-- Risks toolbar -->
+          <div id="risksToolbar" class="mt-2 flex flex-wrap items-center gap-3 justify-between">
+            <div class="flex items-center gap-2 flex-wrap">
+              <label for="risksModeSelect" class="text-sm text-slate-600">Display</label>
+              <select id="risksModeSelect" class="px-2 py-1 rounded-lg border text-sm">
+                <option value="all" selected>All Events</option>
+                <option value="grouped">Grouped by Hazard</option>
+              </select>
+
+              <!-- Add buttons inside the Risks tab -->
+              <button id="addHazardBtn" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm">+ Add Hazard</button>
+              <button id="addEventBtn" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm">+ Add Hazardous Event</button>
+            </div>
+
+            <div class="relative">
+              <label for="listSearch" class="sr-only">Search event titles</label>
+              <input id="listSearch" type="search" placeholder="Search event titles…" class="px-3 py-2 rounded-xl border w-64" />
+              <button id="listSearchClear" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label="Clear search" title="Clear search" type="button">×</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="hazardsAccordion" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- ===== Editor View ===== -->
+    <div id="editorView" class="grid lg:grid-cols-3 gap-6 hidden">
+      <section class="lg:col-span-2">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-6">
+          <!-- Title + Hazard selection -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-3">
+              <label for="riskTitle" class="font-semibold w-40">Event Title</label>
+              <input id="riskTitle" type="text" placeholder="e.g., Dwelling Fire, RTC, Flooding" class="flex-1 px-3 py-2 rounded-xl border" />
+            </div>
+            <div class="flex items-center gap-3">
+              <label for="hazardSel" class="font-semibold w-40">Associated Hazard</label>
+              <select id="hazardSel" class="px-3 py-2 rounded-xl border min-w-[16rem]"></select>
+              <button id="cancelBtn" class="ml-auto px-3 py-2 rounded-xl border">Cancel</button>
+              <button id="backToListBtn" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white">Back to List</button>
+              <button id="resetBtn" class="px-3 py-2 rounded-xl border">Reset</button>
+            </div>
+          </div>
+
+          <!-- Editor tabs -->
+          <div class="tabs" id="editorTabs" role="tablist" aria-label="Editor sections">
+            <button class="tab-btn tab-btn-active" data-tab="details" role="tab" id="tab-btn-details" aria-controls="tab_details" aria-selected="true">Details</button>
+            <button class="tab-btn" data-tab="analysis" role="tab" id="tab-btn-analysis" aria-controls="tab_analysis" aria-selected="false">Analysis</button>
+            <button class="tab-btn" data-tab="plan" role="tab" id="tab-btn-plan" aria-controls="tab_plan" aria-selected="false">Plan</button>
+          </div>
+
+          <!-- Details tab -->
+          <div id="tab_details" class="tab-panel active space-y-4 pt-4" role="tabpanel" aria-labelledby="tab-btn-details">
+            <div class="border rounded-2xl p-4">
+              <label class="block font-semibold mb-2">Description</label>
+              <div class="rte-box">
+                <div class="rte-toolbar">
+                  <button type="button" data-cmd="bold" aria-label="Bold"><strong>Bold</strong></button>
+                  <button type="button" data-cmd="italic" aria-label="Italic"><em>Italic</em></button>
+                  <button type="button" data-cmd="insertUnorderedList" aria-label="Bulleted list">Bulleted</button>
+                  <button type="button" data-cmd="insertOrderedList" aria-label="Numbered list">Numbered</button>
+                  <button type="button" data-link aria-label="Insert link">Link</button>
+                  <button type="button" data-chart aria-label="Insert chart">Chart</button>
+                  <button type="button" data-clear aria-label="Clear editor">Clear</button>
+                </div>
+                <div id="descEditor" class="rte-editor" contenteditable="true" spellcheck="true"></div>
+              </div>
+            </div>
+
+            <!-- Links -->
+            <div class="border rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-semibold">Associated Links</label>
+                <button id="addLinkBtn" class="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm">+ Add Link</button>
+              </div>
+              <div id="linksList" class="mt-2 space-y-2"></div>
+            </div>
+          </div>
+
+          <!-- Analysis tab -->
+          <div id="tab_analysis" class="tab-panel space-y-4 pt-4" role="tabpanel" aria-labelledby="tab-btn-analysis">
+            <div id="categories" class="flex flex-col gap-5"></div>
+          </div>
+
+          <!-- Plan tab -->
+          <div id="tab_plan" class="tab-panel pt-4 space-y-4" role="tabpanel" aria-labelledby="tab-btn-plan">
+            <div class="border rounded-2xl p-4">
+              <h3 class="text-lg font-semibold mb-2">Gaps Overview</h3>
+              <div id="plan_gaps_by_group" class="space-y-3"></div>
+            </div>
+            <div class="border rounded-2xl p-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Mitigations</h3>
+                <button id="addMitigationBtn" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm">+ Add Mitigation</button>
+              </div>
+              <div id="mitigationsList" class="mt-3 space-y-3"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="space-y-6 sticky-aside">
+        <div class="bg-white rounded-2xl shadow p-5 space-y-3">
+          <h3 class="text-lg font-semibold">Controls</h3>
+          <div class="flex items-center gap-3">
+            <label for="statusSel" class="font-medium w-24">Status</label>
+            <select id="statusSel" class="px-3 py-2 rounded-xl border min-w-[12rem]">
+              <option value="Tolerate">Tolerate</option>
+              <option value="Treat">Treat</option>
+              <option value="Transfer">Transfer</option>
+              <option value="Terminate">Terminate</option>
+            </select>
+          </div>
+          <div class="pt-2 border-t">
+            <div class="flex flex-wrap gap-2">
+              <button id="generateBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium">Generate Narrative</button>
+              <button id="saveBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">Save Event</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-2">Summary</h3>
+          <div class="grid grid-cols-2 gap-3 text-sm" id="summaryPills"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-3">Risk Profile</h3>
+          <canvas id="radarChart" height="300" aria-hidden="true"></canvas>
+          <div id="radarA11y" class="sr-only" aria-live="polite"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h3 class="text-lg font-semibold mb-2">Auto-Narrative</h3>
+          <p id="narrative" class="text-slate-700 leading-relaxed">Press <em>Generate Narrative</em> to produce a tailored summary.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ===== Modals ===== -->
+  <!-- Links modal -->
+  <div id="linkModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="linkModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 class="text-lg font-semibold mb-4" id="linkModalTitle">Add Link</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="linkTitleInput">Title</label>
+          <input id="linkTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="linkDescInput">Description</label>
+          <textarea id="linkDescInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="linkUrlInput">URL</label>
+          <input id="linkUrlInput" type="url" placeholder="https://…" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="linkCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="linkOkBtn" class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white" data-default="1">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit chip modal -->
+  <div id="editModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 id="editModalTitle" class="text-lg font-semibold mb-4">Edit</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="editTitleInput">Title</label>
+          <input id="editTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="editDetailsInput">Details</label>
+          <textarea id="editDetailsInput" rows="4" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="editCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="editOkBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white" data-default="1">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mitigation (Plan) modal -->
+  <div id="mitigationModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="mitigationModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6">
+      <h4 id="mitigationModalTitle" class="text-lg font-semibold mb-4">Add Mitigation</h4>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="mitigationTitleInput">Title</label>
+          <input id="mitigationTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1" for="mitigationStartInput">Start</label>
+            <input id="mitigationStartInput" type="date" class="w-full px-3 py-2 rounded-xl border" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1" for="mitigationEndInput">End</label>
+            <input id="mitigationEndInput" type="date" class="w-full px-3 py-2 rounded-xl border" />
+          </div>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1" for="mitigationOutlineInput">Outline Plan</label>
+          <textarea id="mitigationOutlineInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="flex items-center justify-between">
+          <h5 class="font-semibold">Select Gaps this mitigation will address</h5>
+          <div class="text-xs text-slate-500">Click to toggle selection</div>
+        </div>
+        <div id="mitigationGapPicker" class="mt-2 flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="mitigationCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="mitigationOkBtn" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white" data-default="1">Save Mitigation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart modal -->
+  <div id="chartModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="chartModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6">
+      <h4 id="chartModalTitle" class="text-lg font-semibold mb-4">Insert Chart</h4>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="chartType">Chart type</label>
+          <select id="chartType" class="w-full px-3 py-2 rounded-xl border">
+            <option value="bar">Bar</option>
+            <option value="pie">Pie</option>
+            <option value="line">Line</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="chartTitle">Title (optional)</label>
+          <input id="chartTitle" type="text" class="w-full px-3 py-2 rounded-xl border" placeholder="e.g., Incident breakdown" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1" for="chartData">Data (one item per line)</label>
+          <textarea id="chartData" rows="6" class="w-full px-3 py-2 rounded-xl border"
+            placeholder="Dwelling fires, 34&#10;RTC, 18&#10;Wildfire, 12"></textarea>
+          <p class="text-xs text-slate-500 mt-1">Format: <code>Label, Value</code>. Commas in labels are supported via quotes, e.g. <code>&quot;Large, Retail&quot;, 12</code>.</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1" for="chartH">Height (px)</label>
+          <input id="chartH" type="number" min="180" value="320" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center mt-4">
+        <div class="text-xs text-slate-500">Tip: double-click a chart to edit it.</div>
+        <div class="flex gap-2">
+          <button id="chartCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+          <button id="chartOkBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white" data-default="1">Insert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Objective modal -->
+  <div id="objectiveModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="objectiveModalTitle" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <h4 id="objectiveModalTitle" class="text-lg font-semibold mb-4">Add Objective</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="objectiveTitleInput">Title</label>
+          <input id="objectiveTitleInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="objectiveOwnerInput">Owner (optional)</label>
+          <input id="objectiveOwnerInput" type="text" class="w-full px-3 py-2 rounded-xl border" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1" for="objectiveStatusInput">Status</label>
+            <select id="objectiveStatusInput" class="w-full px-3 py-2 rounded-xl border">
+              <option>Planned</option>
+              <option>In Progress</option>
+              <option>Blocked</option>
+              <option>Complete</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1" for="objectiveColorInput">Color (optional)</label>
+            <input id="objectiveColorInput" type="color" class="w-full h-[42px] px-2 py-2 rounded-xl border" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="objectiveDescInput">Description (optional)</label>
+          <textarea id="objectiveDescInput" rows="3" class="w-full px-3 py-2 rounded-xl border"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="objectiveCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button id="objectiveOkBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white" data-default="1">Save</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Reasoning modal -->
+<div id="reasonModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center p-4 z-50"
+     role="dialog" aria-modal="true" aria-labelledby="reasonModalTitle" tabindex="-1">
+  <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+    <h4 id="reasonModalTitle" class="text-lg font-semibold mb-4">Reasoning</h4>
+    <div>
+      <label class="block text-sm font-medium mb-1" for="reasonTextInput">Your reasoning (optional)</label>
+      <textarea id="reasonTextInput" rows="6" class="w-full px-3 py-2 rounded-xl border"
+                placeholder="Why did we choose this score?"></textarea>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="reasonCancelBtn" class="px-4 py-2 rounded-xl border">Cancel</button>
+      <button id="reasonOkBtn" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white" data-default="1">
+        Save
+      </button>
+    </div>
+  </div>
+</div>
+
+  <script defer src="app.js"></script>
+</body>
+</html>
