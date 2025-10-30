@@ -91,9 +91,198 @@
 
     let currentFileHandle = null;
     let currentFileName = null;
+    let currentDriveFileId = null;
     let fileDirty = false;
     let saving = false;
     let lastSavedSnapshot = '';
+
+    /* ============================== *
+     *  Google Drive helpers          *
+     * ============================== */
+    const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+    const driveClientId = (document.querySelector('meta[name="google-drive-client-id"]')?.content || '').trim();
+    let driveTokenClient = null;
+    let driveAccessToken = null;
+    let driveTokenExpiry = 0;
+
+    function driveConfigured() { return !!driveClientId; }
+    function isDriveTokenValid() { return !!driveAccessToken && Date.now() < (driveTokenExpiry - 5000); }
+    function clearDriveToken() { driveAccessToken = null; driveTokenExpiry = 0; }
+
+    function driveStatusLabel() {
+      if (currentDriveFileId) return ' (Drive)';
+      if (currentFileHandle) return ' (Local)';
+      return '';
+    }
+
+    function updateDriveUrlParam(id) {
+      const url = new URL(location.href);
+      if (id) {
+        const shareLink = `https://drive.google.com/file/d/${id}/view`;
+        url.searchParams.set('driveFile', shareLink);
+      } else {
+        url.searchParams.delete('driveFile');
+      }
+      history.replaceState(null, document.title, url.pathname + url.search + url.hash);
+    }
+
+    function parseDriveFileId(raw) {
+      if (!raw) return null;
+      let input = String(raw || '').trim();
+      try { input = decodeURIComponent(input); } catch (e) { /* ignore */ }
+      if (!input) return null;
+      const idMatch = input.match(/[-\w]{10,}/g);
+      if (/^[A-Za-z0-9_-]{10,}$/.test(input)) return input;
+      const urlMatch = input.match(/\/d\/([A-Za-z0-9_-]{10,})/);
+      if (urlMatch) return urlMatch[1];
+      const queryMatch = input.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+      if (queryMatch) return queryMatch[1];
+      if (idMatch) return idMatch[0];
+      return null;
+    }
+
+    function ensureGoogleIdentityLoaded(timeoutMs = 6000) {
+      if (window.google?.accounts?.oauth2) return Promise.resolve();
+      let elapsed = 0;
+      return new Promise((resolve, reject) => {
+        function check() {
+          if (window.google?.accounts?.oauth2) { resolve(); return; }
+          elapsed += 120;
+          if (elapsed >= timeoutMs) { reject(new Error('Google Identity Services script not available.')); return; }
+          setTimeout(check, 120);
+        }
+        check();
+      });
+    }
+
+    async function ensureDriveAccessToken(interactive = true) {
+      if (!driveConfigured()) throw new Error('Google Drive client ID is not configured.');
+      if (isDriveTokenValid()) return driveAccessToken;
+      await ensureGoogleIdentityLoaded();
+      const scope = DRIVE_SCOPE;
+      const tokenRequestOptions = interactive ? {} : { prompt: '' };
+      return new Promise((resolve, reject) => {
+        try {
+          if (!driveTokenClient) {
+            driveTokenClient = google.accounts.oauth2.initTokenClient({
+              client_id: driveClientId,
+              scope,
+              callback: (resp) => {
+                if (resp.error) {
+                  clearDriveToken();
+                  reject(new Error(resp.error_description || resp.error));
+                } else {
+                  driveAccessToken = resp.access_token;
+                  driveTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
+                  resolve(driveAccessToken);
+                }
+              }
+            });
+          }
+          driveTokenClient.callback = (resp) => {
+            if (resp.error) {
+              clearDriveToken();
+              reject(new Error(resp.error_description || resp.error));
+            } else {
+              driveAccessToken = resp.access_token;
+              driveTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
+              resolve(driveAccessToken);
+            }
+          };
+          driveTokenClient.requestAccessToken(tokenRequestOptions);
+        } catch (err) {
+          clearDriveToken();
+          reject(err);
+        }
+      });
+    }
+
+    async function driveAuthorizedFetch(url, options = {}, { interactive = true } = {}) {
+      const headers = Object.assign({}, options.headers || {});
+      const attempt = async (withAuth) => {
+        const opts = Object.assign({}, options, { headers: headers });
+        if (withAuth) {
+          const token = await ensureDriveAccessToken(interactive);
+          opts.headers = Object.assign({}, headers, { Authorization: `Bearer ${token}` });
+        }
+        const resp = await fetch(url, opts);
+        if (!withAuth && (resp.status === 401 || resp.status === 403)) {
+          if (!driveConfigured()) return resp;
+          return attempt(true);
+        }
+        return resp;
+      };
+      return attempt(false);
+    }
+
+    async function fetchDriveMetadata(fileId, opts = {}) {
+      if (!fileId) return null;
+      const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType&supportsAllDrives=true`;
+      const resp = await driveAuthorizedFetch(url, {}, opts);
+      if (!resp.ok) return null;
+      return resp.json().catch(() => null);
+    }
+
+    async function downloadDriveLitl(fileId, opts = {}) {
+      if (!fileId) throw new Error('Missing Google Drive file ID.');
+      const mediaUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`;
+      const resp = await driveAuthorizedFetch(mediaUrl, {}, opts);
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error(`Google Drive download failed (${resp.status}) ${text}`);
+      }
+      const text = await resp.text();
+      const json = JSON.parse(text);
+      const meta = await fetchDriveMetadata(fileId, opts);
+      return { json, meta };
+    }
+
+    async function uploadDriveLitl(fileId, blob, name, opts = {}) {
+      const headers = { 'Content-Type': blob.type || 'application/x-litl' };
+      if (!fileId) throw new Error('Missing Google Drive file ID.');
+      const token = await ensureDriveAccessToken(opts.interactive !== false);
+      const url = `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media&supportsAllDrives=true&fields=id,name`;
+      const resp = await fetch(url, {
+        method: 'PATCH',
+        headers: Object.assign({}, headers, { Authorization: `Bearer ${token}` }),
+        body: blob
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error(`Google Drive save failed (${resp.status}) ${text}`);
+      }
+      return resp.json().catch(() => ({ id: fileId, name }));
+    }
+
+    async function createDriveLitl(blob, name, opts = {}) {
+      const fileName = name || 'community_risk_register.litl';
+      const token = await ensureDriveAccessToken(opts.interactive !== false);
+      const boundary = 'litl-' + Math.random().toString(16).slice(2);
+      const metadata = { name: fileName, mimeType: 'application/x-litl' };
+      const bodyText = await blob.text();
+      const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/x-litl\r\n\r\n${bodyText}\r\n--${boundary}--`;
+      const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error(`Google Drive create failed (${resp.status}) ${text}`);
+      }
+      return resp.json();
+    }
+
+    function driveShareableUrl() {
+      if (!currentDriveFileId) return null;
+      const share = new URL(location.href);
+      share.searchParams.set('driveFile', `https://drive.google.com/file/d/${currentDriveFileId}/view`);
+      share.hash = '';
+      return share.toString();
+    }
 
     /* ============================== *
      *  Modal a11y helpers            *
@@ -150,13 +339,19 @@
     function refreshStatus() {
       const dot = statusDotEl(); const text = statusTextEl();
       if (!dot || !text) return;
-      let base = currentFileName ? `File: ${currentFileName}` : 'Unsaved';
+      let base = currentFileName ? `File: ${currentFileName}${driveStatusLabel()}` : 'Unsaved';
       if (saving) { dot.className = 'pulse-dot bg-sky-500'; text.textContent = `${base} • Saving…`; return; }
       if (fileDirty) { dot.className = 'inline-block w-2 h-2 rounded-full bg-amber-500'; text.textContent = `${base} • Unsaved changes`; return; }
       dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500'; text.textContent = `${base} • Saved ${formatTime()}`;
     }
-    function canSave() { return !!(currentFileHandle && currentFileHandle.createWritable); }
-    function updateFileMenuState() { el('menuSave').disabled = !canSave(); refreshStatus(); }
+    function hasLocalHandle() { return !!(currentFileHandle && currentFileHandle.createWritable); }
+    function hasDriveTarget() { return !!currentDriveFileId; }
+    function canSave() { return hasDriveTarget() || hasLocalHandle(); }
+    function updateFileMenuState() {
+      const saveBtn = el('menuSave'); if (saveBtn) saveBtn.disabled = !canSave();
+      const shareBtn = el('menuShareDrive'); if (shareBtn) shareBtn.disabled = !hasDriveTarget();
+      refreshStatus();
+    }
 
     function getDatasetSnapshotString() {
       return Promise.all([SessionStore.getAll(), SessionStore.getAllHazards(), SessionStore.getAllObjectives()]).then(([items, hazards, objectives]) => {
@@ -701,6 +896,10 @@
         const hazards = Array.isArray(data?.hazards) ? data.hazards : [];
         const objectives = Array.isArray(data?.objectives) ? data.objectives : [];
         if (items.length > 10000 || hazards.length > 5000) throw new Error('Too large');
+        currentDriveFileId = null;
+        currentFileHandle = null;
+        currentFileName = null;
+        updateDriveUrlParam(null);
         SessionStore.setAll({ items, hazards, objectives });
         refreshHazardsAccordion();
         recalc();
@@ -712,6 +911,28 @@
         alert('Failed to import from link');
       } finally {
         history.replaceState(null, document.title, location.pathname + location.search);
+      }
+    }
+
+    async function importDriveFromQuery() {
+      const params = new URLSearchParams(location.search);
+      const raw = params.get('driveFile');
+      if (!raw) return;
+      try {
+        await openDriveFile(raw, { interactive: false });
+      } catch (err) {
+        console.warn('Non-interactive Drive load failed', err);
+        if (driveConfigured()) {
+          try {
+            await openDriveFile(raw, { interactive: true });
+            return;
+          } catch (err2) {
+            console.error('Unable to load Google Drive file from URL', err2);
+            alert('Failed to load Google Drive file from link: ' + (err2?.message || err2));
+          }
+        } else {
+          alert('Failed to load Google Drive file from link: ' + (err?.message || err));
+        }
       }
     }
 
@@ -1532,14 +1753,23 @@
       const litl = { litlVersion: 1, appId: 'crr-v1', title: 'Community Risk Register', data: { items, hazards, objectives } };
       return new Blob([JSON.stringify(litl, null, 2)], { type: 'application/x-litl' });
     }
-      
-    async function openLitlWithPicker() {
-      const [handle] = await window.showOpenFilePicker({ multiple: false, types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }] });
-      currentFileHandle = handle;
-      currentFileName = handle.name || 'untitled.litl';
-      const file = await handle.getFile();
-      const text = await file.text();
-      const data = JSON.parse(text);
+
+    async function buildCurrentLitlBlob() {
+      const [items, hazards, objectives] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards(), SessionStore.getAllObjectives()]);
+      return createLitlBlob(items, hazards, objectives);
+    }
+
+    async function applyLitlPayload(payload, sourceName) {
+      SessionStore.setAll(payload);
+      refreshHazardsAccordion();
+      switchToList();
+      if (sourceName) currentFileName = sourceName;
+      await updateSavedSnapshot();
+      updateFileMenuState();
+    }
+
+    function normalizeLitlJson(data) {
+      if (!data) return { items: [], hazards: [], objectives: [] };
       const payload = data?.data
         ? { items: Array.isArray(data.data.items) ? data.data.items : [],
             hazards: Array.isArray(data.data.hazards) ? data.data.hazards : [],
@@ -1547,31 +1777,94 @@
         : { items: Array.isArray(data.items) ? data.items : [],
             hazards: Array.isArray(data.hazards) ? data.hazards : [],
             objectives: Array.isArray(data.objectives) ? data.objectives : [] };
-      SessionStore.setAll(payload);
-      refreshHazardsAccordion();
-      switchToList();
+      return payload;
+    }
+
+    async function openDriveFile(rawInput, opts = {}) {
+      const fileId = parseDriveFileId(rawInput);
+      if (!fileId) throw new Error('Unable to determine Google Drive file ID.');
+      const { json, meta } = await downloadDriveLitl(fileId, opts);
+      const payload = normalizeLitlJson(json);
+      currentFileHandle = null;
+      currentDriveFileId = fileId;
+      const fallbackName = json?.title ? `${json.title}.litl` : `${fileId}.litl`;
+      currentFileName = (meta?.name || fallbackName || 'google_drive.litl');
+      await applyLitlPayload(payload, currentFileName);
+      updateDriveUrlParam(fileId);
+    }
+
+    async function promptOpenDriveFile() {
+      const input = prompt('Enter the Google Drive file link or ID to open:');
+      if (!input) return;
+      try {
+        await openDriveFile(input, { interactive: true });
+      } catch (err) {
+        console.error('Open Drive file failed', err);
+        alert('Failed to open Google Drive file: ' + (err?.message || err));
+      }
+    }
+
+    async function saveLitlToDriveExisting(blob) {
+      if (!hasDriveTarget()) throw new Error('No Google Drive file selected.');
+      const result = await uploadDriveLitl(currentDriveFileId, blob, currentFileName, { interactive: true });
+      if (result?.name) currentFileName = result.name;
       await updateSavedSnapshot();
+      updateDriveUrlParam(currentDriveFileId);
+    }
+
+    async function saveLitlToDriveAs(blob) {
+      if (!driveConfigured()) throw new Error('Google Drive client ID is not configured.');
+      let defaultName = currentFileName || 'community_risk_register.litl';
+      if (!/\.litl$/i.test(defaultName)) defaultName += '.litl';
+      const name = prompt('Save to Google Drive as:', defaultName);
+      if (!name) return;
+      const result = await createDriveLitl(blob, name.trim(), { interactive: true });
+      currentDriveFileId = result?.id || null;
+      currentFileHandle = null;
+      currentFileName = result?.name || name.trim();
+      await updateSavedSnapshot();
+      updateDriveUrlParam(currentDriveFileId);
       updateFileMenuState();
+    }
+
+    async function copyDriveShareLink() {
+      const share = driveShareableUrl();
+      if (!share) { alert('No Google Drive file to share. Save to Google Drive first.'); return; }
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(share);
+          alert('Share link copied to clipboard.');
+          return;
+        }
+      } catch (err) {
+        console.warn('Clipboard write failed', err);
+      }
+      prompt('Copy this shareable link:', share);
+    }
+
+    async function openLitlWithPicker() {
+      const [handle] = await window.showOpenFilePicker({ multiple: false, types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }] });
+      currentFileHandle = handle;
+      currentFileName = handle.name || 'untitled.litl';
+      currentDriveFileId = null;
+      updateDriveUrlParam(null);
+      const file = await handle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const payload = normalizeLitlJson(data);
+      await applyLitlPayload(payload, currentFileName);
     }
     function openLitlWithInput(file) {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
           const json = JSON.parse(reader.result);
-          const payload = json?.data
-            ? { items: Array.isArray(json.data.items) ? json.data.items : [],
-                hazards: Array.isArray(json.data.hazards) ? json.data.hazards : [],
-                objectives: Array.isArray(json.data.objectives) ? json.data.objectives : [] }
-            : { items: Array.isArray(json.items) ? json.items : [],
-                hazards: Array.isArray(json.hazards) ? json.hazards : [],
-                objectives: Array.isArray(json.objectives) ? json.objectives : [] };
+          const payload = normalizeLitlJson(json);
           currentFileHandle = null;
           currentFileName = file.name || 'loaded.litl';
-          SessionStore.setAll(payload);
-          refreshHazardsAccordion();
-          switchToList();
-          await updateSavedSnapshot();
-          updateFileMenuState();
+          currentDriveFileId = null;
+          updateDriveUrlParam(null);
+          await applyLitlPayload(payload, currentFileName);
         } catch (err) { console.error(err); alert('Invalid .litl file.'); }
       };
       reader.readAsText(file);
@@ -1579,9 +1872,12 @@
     async function saveLitl() {
       try {
         saving = true; refreshStatus();
-        const [items, hazards, objectives] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards(), SessionStore.getAllObjectives()]);
-        const blob = createLitlBlob(items, hazards, objectives);
-        if (canSave()) {
+        const blob = await buildCurrentLitlBlob();
+        if (hasDriveTarget()) {
+          await saveLitlToDriveExisting(blob);
+          saving = false; refreshStatus(); return;
+        }
+        if (hasLocalHandle()) {
           const writable = await currentFileHandle.createWritable();
           await writable.write(blob); await writable.close();
           await updateSavedSnapshot(); saving = false; refreshStatus(); return;
@@ -1592,14 +1888,14 @@
     async function saveLitlAs() {
       try {
         saving = true; refreshStatus();
-        const [items, hazards, objectives] = await Promise.all([SessionStore.getAll(), SessionStore.getAllHazards(), SessionStore.getAllObjectives()]);
-        const blob = createLitlBlob(items, hazards, objectives);
+        const blob = await buildCurrentLitlBlob();
         if (window.showSaveFilePicker) {
           const handle = await window.showSaveFilePicker({
             suggestedName: currentFileName || 'community_risk_register.litl',
             types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }]
           });
           currentFileHandle = handle; currentFileName = handle.name || 'community_risk_register.litl';
+          currentDriveFileId = null; updateDriveUrlParam(null);
           const writable = await handle.createWritable(); await writable.write(blob); await writable.close();
           await updateSavedSnapshot(); updateFileMenuState(); saving = false; refreshStatus(); return;
         }
@@ -1607,6 +1903,7 @@
         const a = document.createElement('a'); a.href = url; a.download = currentFileName || 'community_risk_register.litl';
         document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
         if (!currentFileName) currentFileName = 'community_risk_register.litl';
+        currentDriveFileId = null; updateDriveUrlParam(null);
         await updateSavedSnapshot(); updateFileMenuState(); saving = false; refreshStatus();
       } catch (err) { console.error('Save As .litl failed', err); saving = false; refreshStatus(); alert('Save As failed: ' + (err?.message || err)); }
     }
@@ -1614,6 +1911,8 @@
       SessionStore.setAll({ items: [], hazards: [], objectives: [] });
       currentFileHandle = null;
       currentFileName = null;
+      currentDriveFileId = null;
+      updateDriveUrlParam(null);
       refreshHazardsAccordion();
       switchToList();
       lastSavedSnapshot = '';
@@ -1644,6 +1943,43 @@
       openInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) openLitlWithInput(f); e.target.value = ''; });
       document.getElementById('menuSave').addEventListener('click', async () => { closeMenu(); await saveLitl(); });
       document.getElementById('menuSaveAs').addEventListener('click', async () => { closeMenu(); await saveLitlAs(); });
+      document.getElementById('menuOpenDrive')?.addEventListener('click', async () => {
+        closeMenu();
+        try { await promptOpenDriveFile(); }
+        catch (err) { if (err?.name !== 'AbortError') console.error(err); }
+      });
+      document.getElementById('menuSaveDrive')?.addEventListener('click', async () => {
+        closeMenu();
+        try {
+          saving = true; refreshStatus();
+          const blob = await buildCurrentLitlBlob();
+          if (hasDriveTarget()) await saveLitlToDriveExisting(blob);
+          else await saveLitlToDriveAs(blob);
+        } catch (err) {
+          console.error('Save to Google Drive failed', err);
+          alert('Failed to save to Google Drive: ' + (err?.message || err));
+        } finally {
+          saving = false; refreshStatus();
+        }
+      });
+      document.getElementById('menuSaveDriveAs')?.addEventListener('click', async () => {
+        closeMenu();
+        try {
+          saving = true; refreshStatus();
+          const blob = await buildCurrentLitlBlob();
+          await saveLitlToDriveAs(blob);
+        } catch (err) {
+          console.error('Save As to Google Drive failed', err);
+          alert('Failed to save to Google Drive: ' + (err?.message || err));
+        } finally {
+          saving = false; refreshStatus();
+        }
+      });
+      document.getElementById('menuShareDrive')?.addEventListener('click', async () => {
+        closeMenu();
+        try { await copyDriveShareLink(); }
+        catch (err) { console.error('Share link failed', err); alert('Unable to prepare share link: ' + (err?.message || err)); }
+      });
       document.addEventListener('keydown', (e) => {
         const ctrl = e.ctrlKey || e.metaKey;
         if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); saveLitl(); }
@@ -2100,7 +2436,7 @@
     /* ============================== *
      *  Wire page                     *
      * ============================== */
-    function wire() {
+    async function wire() {
       buildCategoryBlocks();
       CFG.categories.forEach(c => {
         c.sub.forEach(sf => {
@@ -2180,6 +2516,7 @@
       // Objective modal button handlers are set in openObjectiveModal dynamically
 
       // Initial render
+      await importDriveFromQuery();
       populateHazardSelect(null);
       recalc();
       renderListView();
@@ -2190,6 +2527,6 @@
     }
 
     /* ===== run ===== */
-    wire();
+    wire().catch((err) => console.error('Initialization failed', err));
 
   })();
