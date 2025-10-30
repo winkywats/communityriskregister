@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="google-drive-client-id" content="" />
   <title>Community Risk Register - Single Page Demo</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     /* Number inputs */
     input[type=number]::-webkit-inner-spin-button,
@@ -154,6 +156,11 @@
           <button id="menuOpen" class="w-full text-left px-4 py-2 hover:bg-slate-50">Open… (.litl)</button>
           <button id="menuSave" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Save</button>
           <button id="menuSaveAs" class="w-full text-left px-4 py-2 hover:bg-slate-50">Save As…</button>
+          <div class="border-t my-1"></div>
+          <button id="menuOpenDrive" class="w-full text-left px-4 py-2 hover:bg-slate-50">Open from Google Drive…</button>
+          <button id="menuSaveDrive" class="w-full text-left px-4 py-2 hover:bg-slate-50">Save to Google Drive</button>
+          <button id="menuSaveDriveAs" class="w-full text-left px-4 py-2 hover:bg-slate-50">Save As to Google Drive…</button>
+          <button id="menuShareDrive" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Copy Share Link</button>
         </div>
       </div>
       <div id="fileStatus" class="text-sm text-slate-500 flex items-center gap-2" aria-live="polite">
