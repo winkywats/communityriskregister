@@ -572,6 +572,8 @@ function hasEqualityContent(rows){
       toggleElementsHidden(oneDriveSections, !oneDriveAvailable);
 
       const oneDriveButtons = document.querySelectorAll('#fileMenuPanel [data-requires-onedrive]');
+      const oneDriveButtons = document.querySelectorAll('#fileMenuPanel [data-requires-onedrive]');
+      const oneDriveAvailable = oneDriveConfigured() && !!window.OneDrive;
       oneDriveButtons.forEach((btn) => {
         if (!btn) return;
         if (!btn.dataset.defaultTitle) {
@@ -2410,6 +2412,7 @@ function openEqualityModal(subId){
         updateSaveLocationOptions();
         const buttons = Array.from(modal.querySelectorAll('[data-save-location]')).filter((btn) => !btn.classList.contains('hidden'));
         if (!buttons.length) { resolve('local'); return; }
+        const buttons = Array.from(modal.querySelectorAll('[data-save-location]'));
         const cancelBtn = el('saveLocationCancelBtn');
         const listeners = [];
         const finish = (value) => {
@@ -2430,6 +2433,7 @@ function openEqualityModal(subId){
         modal.addEventListener('click', onBackdrop);
         const focusBtn = buttons[0];
         openModal(modal, focusBtn ? `#${focusBtn.id}` : '#saveLocationLocalBtn');
+        openModal(modal, '#saveLocationLocalBtn');
       });
     }
 
@@ -2505,6 +2509,13 @@ function openEqualityModal(subId){
           if (!driveConfigured()) { warnDriveNotConfigured(); saving = false; refreshStatus(); return; }
           await saveLitlToDriveAs(blob);
           saving = false; refreshStatus(); return;
+        }
+        if (choice === 'onedrive') {
+          if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); saving = false; refreshStatus(); return; }
+          const saved = await saveLitlToOneDriveAs(blob);
+          if (!saved) { saving = false; refreshStatus(); return; }
+          saving = false; refreshStatus(); return;
+        }
         }
         if (choice === 'onedrive') {
           if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); saving = false; refreshStatus(); return; }
