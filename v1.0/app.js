@@ -174,18 +174,87 @@ function hasEqualityContent(rows){
     let driveAccessToken = null;
     let driveTokenExpiry = 0;
 
+    const ONEDRIVE_DISABLE_REASON = 'Set the onedrive-client-id meta tag to enable OneDrive / SharePoint features.';
+    const ONEDRIVE_NEEDS_FILE_REASON = 'Save to OneDrive/SharePoint first to enable quick Save.';
+    const ONEDRIVE_SETUP_ALERT = 'OneDrive / SharePoint integration is not configured. Add your Microsoft application ID to the <meta name="onedrive-client-id"> tag first.';
+    const oneDriveClientId = (document.querySelector('meta[name="onedrive-client-id"]')?.content || '').trim();
+    const oneDriveRedirectUri = (document.querySelector('meta[name="onedrive-redirect-uri"]')?.content || '').trim();
+    let oneDriveAccessToken = null;
+    let oneDriveTokenExpiry = 0;
+    let oneDriveTokenType = 'Bearer';
+    let currentOneDriveItem = null;
+
     function driveConfigured() { return !!driveClientId; }
     function isDriveTokenValid() { return !!driveAccessToken && Date.now() < (driveTokenExpiry - 5000); }
     function clearDriveToken() { driveAccessToken = null; driveTokenExpiry = 0; }
+    function oneDriveConfigured() { return !!oneDriveClientId; }
+    function isOneDriveTokenValid() { return !!oneDriveAccessToken && Date.now() < (oneDriveTokenExpiry - 5000); }
+    function clearOneDriveToken() { oneDriveAccessToken = null; oneDriveTokenExpiry = 0; oneDriveTokenType = 'Bearer'; }
 
-    function driveStatusLabel() {
+    function fileLocationSuffix() {
       if (currentDriveFileId) return ' (Drive)';
+      if (hasOneDriveTarget()) return ' (OneDrive/SharePoint)';
       if (currentFileHandle) return ' (Local)';
       return '';
     }
 
     function warnDriveNotConfigured() {
       alert(DRIVE_SETUP_ALERT);
+    }
+
+    function warnOneDriveNotConfigured() {
+      alert(ONEDRIVE_SETUP_ALERT);
+    }
+
+    function ensureOneDriveAvailable() {
+      if (!window.OneDrive || (typeof window.OneDrive !== 'object')) {
+        throw new Error('The OneDrive picker is not ready yet. Please wait a moment and try again.');
+      }
+    }
+
+    function clearOneDriveTarget() {
+      currentOneDriveItem = null;
+      clearOneDriveToken();
+    }
+
+    function setOneDriveToken(token, expiresInMs, tokenType = 'Bearer') {
+      oneDriveAccessToken = token || null;
+      oneDriveTokenType = tokenType || 'Bearer';
+      if (!token || !expiresInMs) {
+        oneDriveTokenExpiry = 0;
+      } else {
+        oneDriveTokenExpiry = Date.now() + Math.max(0, expiresInMs - 5000);
+      }
+    }
+
+    function setOneDriveTargetFromPicker(result) {
+      const file = result?.value?.[0];
+      if (!file) return false;
+      const parent = file.parentReference || {};
+      currentOneDriveItem = {
+        id: file.id || null,
+        driveId: parent.driveId || parent.drive?.id || null,
+        name: file.name || null,
+        webUrl: file.webUrl || null
+      };
+      const token = result?.accessToken || result?.authentication?.accessToken || null;
+      const tokenType = result?.tokenType || result?.authentication?.tokenType || 'Bearer';
+      let expiresMs = 0;
+      const rawExp = result?.expiration || result?.expiresIn || 0;
+      if (rawExp) {
+        if (typeof rawExp === 'number') {
+          expiresMs = rawExp > 10_000 ? rawExp : rawExp * 1000;
+        } else if (typeof rawExp === 'string') {
+          const parsed = Date.parse(rawExp);
+          if (!Number.isNaN(parsed)) {
+            expiresMs = parsed - Date.now();
+          }
+        }
+      }
+      if (token) setOneDriveToken(token, expiresMs, tokenType);
+      else clearOneDriveToken();
+      if (file.name) currentFileName = file.name;
+      return true;
     }
 
     function updateDriveUrlParam(id) {
@@ -412,14 +481,15 @@ function hasEqualityContent(rows){
     function refreshStatus() {
       const dot = statusDotEl(); const text = statusTextEl();
       if (!dot || !text) return;
-      let base = currentFileName ? `File: ${currentFileName}${driveStatusLabel()}` : 'Unsaved';
+      let base = currentFileName ? `File: ${currentFileName}${fileLocationSuffix()}` : 'Unsaved';
       if (saving) { dot.className = 'pulse-dot bg-sky-500'; text.textContent = `${base} • Saving…`; return; }
       if (fileDirty) { dot.className = 'inline-block w-2 h-2 rounded-full bg-amber-500'; text.textContent = `${base} • Unsaved changes`; return; }
       dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-500'; text.textContent = `${base} • Saved ${formatTime()}`;
     }
     function hasLocalHandle() { return !!(currentFileHandle && currentFileHandle.createWritable); }
     function hasDriveTarget() { return !!currentDriveFileId; }
-    function canSave() { return hasDriveTarget() || hasLocalHandle(); }
+    function hasOneDriveTarget() { return !!(currentOneDriveItem && currentOneDriveItem.id); }
+    function canSave() { return hasDriveTarget() || hasOneDriveTarget() || hasLocalHandle(); }
     function updateFileMenuState() {
       const saveBtn = el('menuSave');
       if (saveBtn) saveBtn.disabled = !canSave();
@@ -441,6 +511,30 @@ function hasEqualityContent(rows){
           btn.setAttribute('title', DRIVE_NEEDS_FILE_REASON);
         } else {
           const readyTitle = btn.dataset.driveReadyTitle;
+          const defaultTitle = btn.dataset.defaultTitle;
+          if (readyTitle) btn.setAttribute('title', readyTitle);
+          else if (defaultTitle) btn.setAttribute('title', defaultTitle);
+          else btn.removeAttribute('title');
+        }
+      });
+
+      const oneDriveButtons = document.querySelectorAll('#fileMenuPanel [data-requires-onedrive]');
+      const oneDriveAvailable = oneDriveConfigured() && !!window.OneDrive;
+      oneDriveButtons.forEach((btn) => {
+        if (!btn) return;
+        if (!btn.dataset.defaultTitle) {
+          const existingTitle = btn.getAttribute('title');
+          btn.dataset.defaultTitle = existingTitle || '';
+        }
+        const needsTarget = (btn.id === 'menuSaveOneDrive');
+        const disabled = !oneDriveAvailable || (needsTarget && !hasOneDriveTarget());
+        btn.disabled = disabled;
+        if (!oneDriveAvailable) {
+          btn.setAttribute('title', ONEDRIVE_DISABLE_REASON);
+        } else if (needsTarget && !hasOneDriveTarget()) {
+          btn.setAttribute('title', ONEDRIVE_NEEDS_FILE_REASON);
+        } else {
+          const readyTitle = btn.dataset.onedriveReadyTitle;
           const defaultTitle = btn.dataset.defaultTitle;
           if (readyTitle) btn.setAttribute('title', readyTitle);
           else if (defaultTitle) btn.setAttribute('title', defaultTitle);
@@ -2024,6 +2118,7 @@ function openEqualityModal(subId){
       const payload = normalizeLitlJson(json);
       currentFileHandle = null;
       currentDriveFileId = fileId;
+      clearOneDriveTarget();
       const fallbackName = json?.title ? `${json.title}.litl` : `${fileId}.litl`;
       currentFileName = (meta?.name || fallbackName || 'google_drive.litl');
       await applyLitlPayload(payload, currentFileName);
@@ -2043,6 +2138,7 @@ function openEqualityModal(subId){
 
     async function saveLitlToDriveExisting(blob) {
       if (!hasDriveTarget()) throw new Error('No Google Drive file selected.');
+      clearOneDriveTarget();
       const result = await uploadDriveLitl(currentDriveFileId, blob, currentFileName, { interactive: true });
       if (result?.name) currentFileName = result.name;
       await updateSavedSnapshot();
@@ -2057,12 +2153,156 @@ function openEqualityModal(subId){
       const name = prompt('Save to Google Drive as:', defaultName);
       if (!name) return;
       const result = await createDriveLitl(blob, name.trim(), { interactive: true });
+      clearOneDriveTarget();
       currentDriveFileId = result?.id || null;
       currentFileHandle = null;
       currentFileName = result?.name || name.trim();
       await updateSavedSnapshot();
       updateDriveUrlParam(currentDriveFileId);
       updateFileMenuState();
+    }
+
+    function oneDriveContentEndpoint(item) {
+      if (!item?.id) return null;
+      const id = encodeURIComponent(item.id);
+      if (item.driveId) {
+        return `https://graph.microsoft.com/v1.0/drives/${encodeURIComponent(item.driveId)}/items/${id}/content`;
+      }
+      return `https://graph.microsoft.com/v1.0/me/drive/items/${id}/content`;
+    }
+
+    async function saveLitlToOneDriveExisting(blob) {
+      if (!hasOneDriveTarget()) throw new Error('No OneDrive/SharePoint file selected.');
+      updateDriveUrlParam(null);
+      if (!isOneDriveTokenValid()) {
+        const saved = await saveLitlToOneDriveAs(blob, { reuseName: true });
+        if (!saved) return;
+        return;
+      }
+      const endpoint = oneDriveContentEndpoint(currentOneDriveItem);
+      if (!endpoint) throw new Error('OneDrive target is missing required identifiers.');
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `${oneDriveTokenType || 'Bearer'} ${oneDriveAccessToken}`,
+          'Content-Type': 'application/octet-stream'
+        },
+        body: blob
+      });
+      if (res.status === 401 || res.status === 403) {
+        clearOneDriveToken();
+        const saved = await saveLitlToOneDriveAs(blob, { reuseName: true });
+        if (!saved) return;
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`OneDrive update failed (${res.status})`);
+      }
+      let meta = null;
+      try {
+        meta = await res.clone().json();
+      } catch (_) { /* ignore */ }
+      if (meta?.name) currentFileName = meta.name;
+      await updateSavedSnapshot();
+      fileDirty = false;
+      updateFileMenuState();
+      refreshStatus();
+    }
+
+    async function saveLitlToOneDriveAs(blob, { reuseName = false } = {}) {
+      if (!oneDriveConfigured()) throw new Error('OneDrive / SharePoint client ID is not configured.');
+      ensureOneDriveAvailable();
+      let defaultName = currentFileName || 'community_risk_register.litl';
+      if (reuseName && currentFileName) defaultName = currentFileName;
+      if (!/\.litl$/i.test(defaultName)) defaultName += '.litl';
+      return new Promise((resolve, reject) => {
+        const options = {
+          clientId: oneDriveClientId,
+          action: 'save',
+          fileName: defaultName,
+          fileContent: blob,
+          openInNewWindow: true
+        };
+        if (oneDriveRedirectUri) {
+          options.advanced = { redirectUri: oneDriveRedirectUri };
+        }
+        options.success = async (result) => {
+          try {
+            if (!setOneDriveTargetFromPicker(result)) { resolve(false); return; }
+            currentDriveFileId = null;
+            updateDriveUrlParam(null);
+            currentFileHandle = null;
+            await updateSavedSnapshot();
+            fileDirty = false;
+            updateFileMenuState();
+            refreshStatus();
+            resolve(true);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        options.cancel = () => resolve(false);
+        options.error = (err) => reject(new Error(err?.message || err));
+        try {
+          window.OneDrive.save(options);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    async function promptOpenOneDriveFile() {
+      if (!oneDriveConfigured()) throw new Error('OneDrive / SharePoint client ID is not configured.');
+      ensureOneDriveAvailable();
+      return new Promise((resolve, reject) => {
+        const options = {
+          clientId: oneDriveClientId,
+          action: 'download',
+          multiSelect: false,
+          openInNewWindow: true
+        };
+        if (oneDriveRedirectUri) {
+          options.advanced = { redirectUri: oneDriveRedirectUri };
+        }
+        options.success = async (result) => {
+          try {
+            if (!setOneDriveTargetFromPicker(result)) { resolve(false); return; }
+            clearDriveToken();
+            currentDriveFileId = null;
+            updateDriveUrlParam(null);
+            currentFileHandle = null;
+            const file = result?.value?.[0];
+            let downloadUrl = file?.['@microsoft.graph.downloadUrl'] || file?.downloadUrl || null;
+            let useAuth = false;
+            if (!downloadUrl) {
+              downloadUrl = oneDriveContentEndpoint(currentOneDriveItem);
+              useAuth = true;
+            }
+            if (!downloadUrl) throw new Error('Unable to determine download URL for the selected file.');
+            const fetchOptions = useAuth && oneDriveAccessToken ? {
+              headers: { 'Authorization': `${oneDriveTokenType || 'Bearer'} ${oneDriveAccessToken}` }
+            } : undefined;
+            const response = await fetch(downloadUrl, fetchOptions);
+            if (!response.ok) throw new Error(`Download failed (${response.status})`);
+            const text = await response.text();
+            const json = JSON.parse(text);
+            const payload = normalizeLitlJson(json);
+            await applyLitlPayload(payload, currentFileName || file?.name || 'onedrive.litl');
+            fileDirty = false;
+            refreshStatus();
+            resolve(true);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        options.cancel = () => resolve(false);
+        options.error = (err) => reject(new Error(err?.message || err));
+        try {
+          window.OneDrive.open(options);
+        } catch (err) {
+          reject(err);
+        }
+      });
     }
 
     async function copyDriveShareLink() {
@@ -2086,6 +2326,7 @@ function openEqualityModal(subId){
       currentFileName = handle.name || 'untitled.litl';
       currentDriveFileId = null;
       updateDriveUrlParam(null);
+      clearOneDriveTarget();
       const file = await handle.getFile();
       const text = await file.text();
       const data = JSON.parse(text);
@@ -2102,17 +2343,91 @@ function openEqualityModal(subId){
           currentFileName = file.name || 'loaded.litl';
           currentDriveFileId = null;
           updateDriveUrlParam(null);
+          clearOneDriveTarget();
           await applyLitlPayload(payload, currentFileName);
         } catch (err) { console.error(err); alert('Invalid .litl file.'); }
       };
       reader.readAsText(file);
     }
+
+    function promptSaveLocation() {
+      const modal = el('saveLocationModal');
+      if (!modal) return Promise.resolve('local');
+      return new Promise((resolve) => {
+        const buttons = Array.from(modal.querySelectorAll('[data-save-location]'));
+        const cancelBtn = el('saveLocationCancelBtn');
+        const listeners = [];
+        const finish = (value) => {
+          listeners.forEach(({ btn, handler }) => btn.removeEventListener('click', handler));
+          if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+          modal.removeEventListener('click', onBackdrop);
+          closeModal(modal);
+          resolve(value);
+        };
+        const onCancel = () => finish(null);
+        const onBackdrop = (event) => { if (event.target === modal) finish(null); };
+        buttons.forEach((btn) => {
+          const handler = () => finish(btn.dataset.saveLocation || 'local');
+          btn.addEventListener('click', handler);
+          listeners.push({ btn, handler });
+        });
+        if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        openModal(modal, '#saveLocationLocalBtn');
+      });
+    }
+
+    async function saveLitlAsLocal(blob) {
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: currentFileName || 'community_risk_register.litl',
+          types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }]
+        });
+        currentFileHandle = handle;
+        currentFileName = handle.name || 'community_risk_register.litl';
+        currentDriveFileId = null;
+        updateDriveUrlParam(null);
+        clearOneDriveTarget();
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        await updateSavedSnapshot();
+        fileDirty = false;
+        updateFileMenuState();
+        refreshStatus();
+        return true;
+      }
+      const downloadName = currentFileName || 'community_risk_register.litl';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = downloadName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      currentFileHandle = null;
+      if (!currentFileName) currentFileName = downloadName;
+      currentDriveFileId = null;
+      updateDriveUrlParam(null);
+      clearOneDriveTarget();
+      await updateSavedSnapshot();
+      fileDirty = false;
+      updateFileMenuState();
+      refreshStatus();
+      return true;
+    }
+
     async function saveLitl() {
       try {
         saving = true; refreshStatus();
         const blob = await buildCurrentLitlBlob();
         if (hasDriveTarget()) {
           await saveLitlToDriveExisting(blob);
+          saving = false; refreshStatus(); return;
+        }
+        if (hasOneDriveTarget()) {
+          await saveLitlToOneDriveExisting(blob);
           saving = false; refreshStatus(); return;
         }
         if (hasLocalHandle()) {
@@ -2123,26 +2438,26 @@ function openEqualityModal(subId){
         await saveLitlAs(); saving = false; refreshStatus();
       } catch (err) { console.error('Save .litl failed', err); saving = false; refreshStatus(); alert('Save failed: ' + (err?.message || err)); }
     }
+
     async function saveLitlAs() {
       try {
         saving = true; refreshStatus();
         const blob = await buildCurrentLitlBlob();
-        if (window.showSaveFilePicker) {
-          const handle = await window.showSaveFilePicker({
-            suggestedName: currentFileName || 'community_risk_register.litl',
-            types: [{ description: 'litl files', accept: { 'application/x-litl': ['.litl'] } }]
-          });
-          currentFileHandle = handle; currentFileName = handle.name || 'community_risk_register.litl';
-          currentDriveFileId = null; updateDriveUrlParam(null);
-          const writable = await handle.createWritable(); await writable.write(blob); await writable.close();
-          await updateSavedSnapshot(); updateFileMenuState(); saving = false; refreshStatus(); return;
+        const choice = await promptSaveLocation();
+        if (!choice) { saving = false; refreshStatus(); return; }
+        if (choice === 'drive') {
+          if (!driveConfigured()) { warnDriveNotConfigured(); saving = false; refreshStatus(); return; }
+          await saveLitlToDriveAs(blob);
+          saving = false; refreshStatus(); return;
         }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = currentFileName || 'community_risk_register.litl';
-        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-        if (!currentFileName) currentFileName = 'community_risk_register.litl';
-        currentDriveFileId = null; updateDriveUrlParam(null);
-        await updateSavedSnapshot(); updateFileMenuState(); saving = false; refreshStatus();
+        if (choice === 'onedrive') {
+          if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); saving = false; refreshStatus(); return; }
+          const saved = await saveLitlToOneDriveAs(blob);
+          if (!saved) { saving = false; refreshStatus(); return; }
+          saving = false; refreshStatus(); return;
+        }
+        await saveLitlAsLocal(blob);
+        saving = false; refreshStatus();
       } catch (err) { console.error('Save As .litl failed', err); saving = false; refreshStatus(); alert('Save As failed: ' + (err?.message || err)); }
     }
     function newRegister() {
@@ -2151,6 +2466,7 @@ function openEqualityModal(subId){
       currentFileName = null;
       currentDriveFileId = null;
       updateDriveUrlParam(null);
+      clearOneDriveTarget();
       refreshHazardsAccordion();
       switchToList();
       lastSavedSnapshot = '';
@@ -2223,6 +2539,45 @@ function openEqualityModal(subId){
         try { await copyDriveShareLink(); }
         catch (err) { console.error('Share link failed', err); alert('Unable to prepare share link: ' + (err?.message || err)); }
       });
+      document.getElementById('menuOpenOneDrive')?.addEventListener('click', async () => {
+        closeMenu();
+        if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); return; }
+        try {
+          await promptOpenOneDriveFile();
+        } catch (err) {
+          console.error('Open from OneDrive/SharePoint failed', err);
+          alert('Failed to open from OneDrive/SharePoint: ' + (err?.message || err));
+        }
+      });
+      document.getElementById('menuSaveOneDrive')?.addEventListener('click', async () => {
+        closeMenu();
+        if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); return; }
+        try {
+          saving = true; refreshStatus();
+          const blob = await buildCurrentLitlBlob();
+          if (hasOneDriveTarget()) await saveLitlToOneDriveExisting(blob);
+          else await saveLitlToOneDriveAs(blob);
+        } catch (err) {
+          console.error('Save to OneDrive/SharePoint failed', err);
+          alert('Failed to save to OneDrive/SharePoint: ' + (err?.message || err));
+        } finally {
+          saving = false; refreshStatus();
+        }
+      });
+      document.getElementById('menuSaveOneDriveAs')?.addEventListener('click', async () => {
+        closeMenu();
+        if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); return; }
+        try {
+          saving = true; refreshStatus();
+          const blob = await buildCurrentLitlBlob();
+          await saveLitlToOneDriveAs(blob);
+        } catch (err) {
+          console.error('Save As to OneDrive/SharePoint failed', err);
+          alert('Failed to save to OneDrive/SharePoint: ' + (err?.message || err));
+        } finally {
+          saving = false; refreshStatus();
+        }
+      });
       document.addEventListener('keydown', (e) => {
         const ctrl = e.ctrlKey || e.metaKey;
         if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); saveLitl(); }
@@ -2230,6 +2585,15 @@ function openEqualityModal(subId){
         if (ctrl && e.key.toLowerCase() === 'n') { e.preventDefault(); newRegister(); }
       });
       updateFileMenuState();
+      if (!window.OneDrive) {
+        const pollStart = Date.now();
+        const poll = setInterval(() => {
+          if (window.OneDrive || (Date.now() - pollStart) > 20000) {
+            clearInterval(poll);
+            updateFileMenuState();
+          }
+        }, 1000);
+      }
     }
 
     /* ============================== *
