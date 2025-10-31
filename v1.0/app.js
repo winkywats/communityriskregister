@@ -490,6 +490,55 @@ function hasEqualityContent(rows){
     function hasDriveTarget() { return !!currentDriveFileId; }
     function hasOneDriveTarget() { return !!(currentOneDriveItem && currentOneDriveItem.id); }
     function canSave() { return hasDriveTarget() || hasOneDriveTarget() || hasLocalHandle(); }
+
+    function toggleElementsHidden(nodes, hidden) {
+      nodes.forEach((node) => {
+        if (!node) return;
+        if (hidden) {
+          node.classList.add('hidden');
+          node.setAttribute('aria-hidden', 'true');
+        } else {
+          node.classList.remove('hidden');
+          node.removeAttribute('aria-hidden');
+        }
+      });
+    }
+
+    function updateSaveLocationOptions() {
+      const driveBtn = el('saveLocationDriveBtn');
+      const driveAvailable = driveConfigured();
+      if (driveBtn) {
+        driveBtn.classList.toggle('hidden', !driveAvailable);
+        if (!driveAvailable) {
+          driveBtn.setAttribute('aria-hidden', 'true');
+          driveBtn.tabIndex = -1;
+        } else {
+          driveBtn.removeAttribute('aria-hidden');
+          driveBtn.tabIndex = 0;
+        }
+      }
+
+      const oneDriveBtn = el('saveLocationOneDriveBtn');
+      const oneDriveAvailable = oneDriveConfigured() && !!window.OneDrive;
+      if (oneDriveBtn) {
+        oneDriveBtn.classList.toggle('hidden', !oneDriveAvailable);
+        if (!oneDriveAvailable) {
+          oneDriveBtn.setAttribute('aria-hidden', 'true');
+          oneDriveBtn.tabIndex = -1;
+        } else {
+          oneDriveBtn.removeAttribute('aria-hidden');
+          oneDriveBtn.tabIndex = 0;
+        }
+      }
+
+      const optionsGrid = el('saveLocationOptions');
+      if (optionsGrid) {
+        const visibleCount = optionsGrid.querySelectorAll('[data-save-location]:not(.hidden)').length;
+        optionsGrid.classList.toggle('sm:grid-cols-3', visibleCount >= 3);
+        optionsGrid.classList.toggle('sm:grid-cols-2', visibleCount === 2);
+        optionsGrid.classList.toggle('sm:grid-cols-1', visibleCount <= 1);
+      }
+    }
     function updateFileMenuState() {
       const saveBtn = el('menuSave');
       if (saveBtn) saveBtn.disabled = !canSave();
@@ -518,6 +567,11 @@ function hasEqualityContent(rows){
         }
       });
 
+      const oneDriveAvailable = oneDriveConfigured() && !!window.OneDrive;
+      const oneDriveSections = document.querySelectorAll('#fileMenuPanel [data-onedrive-section]');
+      toggleElementsHidden(oneDriveSections, !oneDriveAvailable);
+
+      const oneDriveButtons = document.querySelectorAll('#fileMenuPanel [data-requires-onedrive]');
       const oneDriveButtons = document.querySelectorAll('#fileMenuPanel [data-requires-onedrive]');
       const oneDriveAvailable = oneDriveConfigured() && !!window.OneDrive;
       oneDriveButtons.forEach((btn) => {
@@ -542,6 +596,7 @@ function hasEqualityContent(rows){
         }
       });
 
+      updateSaveLocationOptions();
       refreshStatus();
     }
 
@@ -2354,6 +2409,9 @@ function openEqualityModal(subId){
       const modal = el('saveLocationModal');
       if (!modal) return Promise.resolve('local');
       return new Promise((resolve) => {
+        updateSaveLocationOptions();
+        const buttons = Array.from(modal.querySelectorAll('[data-save-location]')).filter((btn) => !btn.classList.contains('hidden'));
+        if (!buttons.length) { resolve('local'); return; }
         const buttons = Array.from(modal.querySelectorAll('[data-save-location]'));
         const cancelBtn = el('saveLocationCancelBtn');
         const listeners = [];
@@ -2373,6 +2431,8 @@ function openEqualityModal(subId){
         });
         if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
         modal.addEventListener('click', onBackdrop);
+        const focusBtn = buttons[0];
+        openModal(modal, focusBtn ? `#${focusBtn.id}` : '#saveLocationLocalBtn');
         openModal(modal, '#saveLocationLocalBtn');
       });
     }
@@ -2449,6 +2509,13 @@ function openEqualityModal(subId){
           if (!driveConfigured()) { warnDriveNotConfigured(); saving = false; refreshStatus(); return; }
           await saveLitlToDriveAs(blob);
           saving = false; refreshStatus(); return;
+        }
+        if (choice === 'onedrive') {
+          if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); saving = false; refreshStatus(); return; }
+          const saved = await saveLitlToOneDriveAs(blob);
+          if (!saved) { saving = false; refreshStatus(); return; }
+          saving = false; refreshStatus(); return;
+        }
         }
         if (choice === 'onedrive') {
           if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); saving = false; refreshStatus(); return; }

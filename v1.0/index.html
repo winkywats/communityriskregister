@@ -159,12 +159,15 @@
           <button id="menuOpen" class="w-full text-left px-4 py-2 hover:bg-slate-50">Open… (.litl)</button>
           <button id="menuSave" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Save</button>
           <button id="menuSaveAs" class="w-full text-left px-4 py-2 hover:bg-slate-50">Save As…</button>
-          <div class="border-t my-1"></div>
+          <div class="border-t my-1" data-onedrive-section="1"></div>
           <button id="menuOpenDrive" data-requires-drive="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Open from Google Drive…</button>
           <button id="menuSaveDrive" data-requires-drive="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Save to Google Drive</button>
           <button id="menuSaveDriveAs" data-requires-drive="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Save As to Google Drive…</button>
           <button id="menuShareDrive" data-requires-drive="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled data-drive-ready-title="Copy the share link for the current Google Drive file.">Copy Share Link</button>
           <div class="border-t my-1"></div>
+          <button id="menuOpenOneDrive" data-requires-onedrive="1" data-onedrive-section="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Open from OneDrive/SharePoint…</button>
+          <button id="menuSaveOneDrive" data-requires-onedrive="1" data-onedrive-section="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Save to OneDrive/SharePoint</button>
+          <button id="menuSaveOneDriveAs" data-requires-onedrive="1" data-onedrive-section="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Save As to OneDrive/SharePoint…</button>
           <button id="menuOpenOneDrive" data-requires-onedrive="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Open from OneDrive/SharePoint…</button>
           <button id="menuSaveOneDrive" data-requires-onedrive="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Save to OneDrive/SharePoint</button>
           <button id="menuSaveOneDriveAs" data-requires-onedrive="1" class="w-full text-left px-4 py-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Save As to OneDrive/SharePoint…</button>
@@ -352,6 +355,7 @@
         </div>
         <button id="saveLocationCancelBtn" class="px-3 py-1.5 rounded-xl border text-sm" data-cancel="1">Cancel</button>
       </div>
+      <div id="saveLocationOptions" class="grid gap-3 sm:grid-cols-3">
       <div class="grid gap-3 sm:grid-cols-3">
         <button id="saveLocationLocalBtn" data-save-location="local" class="flex flex-col gap-3 items-start border rounded-2xl p-4 hover:border-sky-500 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500" data-default="1">
           <span class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-600">
@@ -378,6 +382,7 @@
             <span class="block text-sm text-slate-600">Save to your connected Google Drive.</span>
           </span>
         </button>
+        <button id="saveLocationOneDriveBtn" data-save-location="onedrive" data-onedrive-section="1" class="flex flex-col gap-3 items-start border rounded-2xl p-4 hover:border-sky-500 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
         <button id="saveLocationOneDriveBtn" data-save-location="onedrive" class="flex flex-col gap-3 items-start border rounded-2xl p-4 hover:border-sky-500 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
           <span class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-sky-50 text-sky-600">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-8 h-8" aria-hidden="true">
