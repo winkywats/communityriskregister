@@ -539,6 +539,42 @@ function hasEqualityContent(rows){
         optionsGrid.classList.toggle('sm:grid-cols-1', visibleCount <= 1);
       }
     }
+
+    function updateOpenLocationOptions() {
+      const driveBtn = el('openLocationDriveBtn');
+      const driveAvailable = driveConfigured();
+      if (driveBtn) {
+        driveBtn.classList.toggle('hidden', !driveAvailable);
+        if (!driveAvailable) {
+          driveBtn.setAttribute('aria-hidden', 'true');
+          driveBtn.tabIndex = -1;
+        } else {
+          driveBtn.removeAttribute('aria-hidden');
+          driveBtn.tabIndex = 0;
+        }
+      }
+
+      const oneDriveBtn = el('openLocationOneDriveBtn');
+      const oneDriveAvailable = oneDriveConfigured() && !!window.OneDrive;
+      if (oneDriveBtn) {
+        oneDriveBtn.classList.toggle('hidden', !oneDriveAvailable);
+        if (!oneDriveAvailable) {
+          oneDriveBtn.setAttribute('aria-hidden', 'true');
+          oneDriveBtn.tabIndex = -1;
+        } else {
+          oneDriveBtn.removeAttribute('aria-hidden');
+          oneDriveBtn.tabIndex = 0;
+        }
+      }
+
+      const optionsGrid = el('openLocationOptions');
+      if (optionsGrid) {
+        const visibleCount = optionsGrid.querySelectorAll('[data-open-location]:not(.hidden)').length;
+        optionsGrid.classList.toggle('sm:grid-cols-3', visibleCount >= 3);
+        optionsGrid.classList.toggle('sm:grid-cols-2', visibleCount === 2);
+        optionsGrid.classList.toggle('sm:grid-cols-1', visibleCount <= 1);
+      }
+    }
     function updateFileMenuState() {
       const saveBtn = el('menuSave');
       if (saveBtn) saveBtn.disabled = !canSave();
@@ -597,6 +633,7 @@ function hasEqualityContent(rows){
       });
 
       updateSaveLocationOptions();
+      updateOpenLocationOptions();
       refreshStatus();
     }
 
@@ -2412,7 +2449,6 @@ function openEqualityModal(subId){
         updateSaveLocationOptions();
         const buttons = Array.from(modal.querySelectorAll('[data-save-location]')).filter((btn) => !btn.classList.contains('hidden'));
         if (!buttons.length) { resolve('local'); return; }
-        const buttons = Array.from(modal.querySelectorAll('[data-save-location]'));
         const cancelBtn = el('saveLocationCancelBtn');
         const listeners = [];
         const finish = (value) => {
@@ -2431,9 +2467,38 @@ function openEqualityModal(subId){
         });
         if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
         modal.addEventListener('click', onBackdrop);
-        const focusBtn = buttons[0];
+        const focusBtn = buttons.find((btn) => btn.dataset.default === '1') || buttons[0];
         openModal(modal, focusBtn ? `#${focusBtn.id}` : '#saveLocationLocalBtn');
-        openModal(modal, '#saveLocationLocalBtn');
+      });
+    }
+
+    function promptOpenLocation() {
+      const modal = el('openLocationModal');
+      if (!modal) return Promise.resolve('local');
+      return new Promise((resolve) => {
+        updateOpenLocationOptions();
+        const buttons = Array.from(modal.querySelectorAll('[data-open-location]')).filter((btn) => !btn.classList.contains('hidden'));
+        if (!buttons.length) { resolve('local'); return; }
+        const cancelBtn = el('openLocationCancelBtn');
+        const listeners = [];
+        const finish = (value) => {
+          listeners.forEach(({ btn, handler }) => btn.removeEventListener('click', handler));
+          if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+          modal.removeEventListener('click', onBackdrop);
+          closeModal(modal);
+          resolve(value);
+        };
+        const onCancel = () => finish(null);
+        const onBackdrop = (event) => { if (event.target === modal) finish(null); };
+        buttons.forEach((btn) => {
+          const handler = () => finish(btn.dataset.openLocation || 'local');
+          btn.addEventListener('click', handler);
+          listeners.push({ btn, handler });
+        });
+        if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        const focusBtn = buttons.find((btn) => btn.dataset.default === '1') || buttons[0];
+        openModal(modal, focusBtn ? `#${focusBtn.id}` : '#openLocationLocalBtn');
       });
     }
 
@@ -2558,8 +2623,24 @@ function openEqualityModal(subId){
       document.getElementById('menuNew').addEventListener('click', () => { closeMenu(); newRegister(); });
       document.getElementById('menuOpen').addEventListener('click', async () => {
         closeMenu();
-        try { if (window.showOpenFilePicker) await openLitlWithPicker(); else openInput.click(); }
-        catch (err) { if (err?.name !== 'AbortError') { console.error(err); } }
+        try {
+          const location = await promptOpenLocation();
+          if (!location) return;
+          if (location === 'drive') {
+            if (!driveConfigured()) { warnDriveNotConfigured(); return; }
+            await promptOpenDriveFile();
+            return;
+          }
+          if (location === 'onedrive') {
+            if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); return; }
+            await promptOpenOneDriveFile();
+            return;
+          }
+          if (window.showOpenFilePicker) { await openLitlWithPicker(); }
+          else { openInput.click(); }
+        } catch (err) {
+          if (err?.name !== 'AbortError') { console.error(err); }
+        }
       });
       openInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) openLitlWithInput(f); e.target.value = ''; });
       document.getElementById('menuSave').addEventListener('click', async () => { closeMenu(); await saveLitl(); });
@@ -2645,10 +2726,30 @@ function openEqualityModal(subId){
           saving = false; refreshStatus();
         }
       });
-      document.addEventListener('keydown', (e) => {
+      document.addEventListener('keydown', async (e) => {
         const ctrl = e.ctrlKey || e.metaKey;
         if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); saveLitl(); }
-        if (ctrl && e.key.toLowerCase() === 'o') { e.preventDefault(); if (window.showOpenFilePicker) openLitlWithPicker(); else openInput.click(); }
+        if (ctrl && e.key.toLowerCase() === 'o') {
+          e.preventDefault();
+          try {
+            const location = await promptOpenLocation();
+            if (!location) return;
+            if (location === 'drive') {
+              if (!driveConfigured()) { warnDriveNotConfigured(); return; }
+              await promptOpenDriveFile();
+              return;
+            }
+            if (location === 'onedrive') {
+              if (!oneDriveConfigured()) { warnOneDriveNotConfigured(); return; }
+              await promptOpenOneDriveFile();
+              return;
+            }
+            if (window.showOpenFilePicker) { await openLitlWithPicker(); }
+            else { openInput.click(); }
+          } catch (err) {
+            if (err?.name !== 'AbortError') { console.error(err); }
+          }
+        }
         if (ctrl && e.key.toLowerCase() === 'n') { e.preventDefault(); newRegister(); }
       });
       updateFileMenuState();
